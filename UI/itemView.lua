@@ -12,17 +12,23 @@ local ITEMS_START = 3
 local ITEMS_END = util.H(term) - 2
 local ITEM_AREA_SIZE = ITEMS_END - ITEMS_START + 1
 
+local MODES = {
+  select = "Select Mode",
+  output = "Output",
+  storage = "Storage"
+}
+
 local config = fileUtil.readData("config.txt")
 
 local index = 1
 local itemScroll = 1
 local items = {}
-local mode = "Select Mode"
+local mode = MODES.select
 
 local itemList = {}
 
 local function loadItems()
-  local loadOutChest = mode == "Output"
+  local loadOutChest = mode == MODES.output
 
   items = {}
   local localItems, storedItems = itemUtil.getItems(config)
@@ -43,20 +49,23 @@ local function loadItems()
 end
 
 local function loadModes()
-  loadItems(false)
+  mode = MODES.storage
+  loadItems()
   local storageCount = 0
   for _, v in pairs(items) do
     storageCount = storageCount + v.count
   end
-  loadItems(true)
+  mode = MODES.output
+  loadItems()
   local localCount = 0
   for _, v in pairs(items) do
     localCount = localCount + v.count
   end
   items = {
-    { name = "Output",  count = localCount },
-    { name = "Storage", count = storageCount }
+    { name = MODES.output,  count = localCount },
+    { name = MODES.storage, count = storageCount }
   }
+  mode = MODES.select
 end
 
 local function drawList()
@@ -146,8 +155,7 @@ while true do
       end
     end
   elseif key == keys.backspace then
-    if (mode ~= "Select Mode") then
-      mode = "Select Mode"
+    if (mode ~= MODES.select) then
       index = 0
       loadModes()
     else
@@ -157,11 +165,22 @@ while true do
       return
     end
   elseif key == keys.enter then
-    if mode == "Select Mode" then
+    if mode == MODES.select then
       mode = items[index].name
       loadItems()
     else
       --Move items and update list
+      util.SetTextColor(term, colors.lime)
+      util.LeftWrite(term, util.W(term), 1, "Moving " .. items[index].name .. "...")
+      if mode == MODES.output then
+        itemUtil.insertItems(config, items[index].name)
+      else
+        itemUtil.outputItems(config, items[index].name)
+      end
+
+      loadItems()
     end
   end
+
+  -- TODO: Button to output/insert all
 end

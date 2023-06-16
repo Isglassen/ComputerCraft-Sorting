@@ -145,14 +145,12 @@ local function insertItems(config, type, name, enchantments, tags)
     for slot = 1, outChest.size() do
         local ok = true
         if type ~= nil and outChest.getItemDetail(slot).name ~= type then ok = false end
-        if not _itemMatches(outChest.getItemDetail(slot), name, enchantments, tags) then
-            ok = false
+        if not _itemMatches(outChest.getItemDetail(slot), name, enchantments, tags) then ok = false end
 
-            if ok then
-                -- TODO: Optimize to stop if slot is empty
-                for _, chest in pairs(chests) do
-                    chest.pullItems(config.outChest, slot)
-                end
+        if ok then
+            -- TODO: Optimize to stop if slot is empty
+            for _, chest in pairs(chests) do
+                chest.pullItems(config.outChest, slot)
             end
         end
     end
