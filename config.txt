@@ -1,0 +1,4 @@
+{
+    outTank="create:fluid_tank_1",
+    outChest="minecraft:chest_1",
+}

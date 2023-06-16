@@ -1,0 +1,12 @@
+{
+    "Lua.diagnostics.globals": [
+        "peripheral",
+        "fs",
+        "textutils",
+        "term",
+        "keys"
+    ],
+    "Lua.diagnostics.disable": [
+        "undefined-field"
+    ]
+}
