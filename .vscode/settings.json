@@ -4,7 +4,8 @@
         "fs",
         "textutils",
         "term",
-        "keys"
+        "keys",
+        "sleep"
     ],
     "Lua.diagnostics.disable": [
         "undefined-field"
