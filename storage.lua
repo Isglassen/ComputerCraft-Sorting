@@ -21,7 +21,7 @@ local MODES = {
   itemStorage = "Item Storage",
 }
 
-local config = fileFns.readData("StorageData/config.txt")
+local config = fileFns.readData("storage_config.txt")
 
 local index = 1
 local itemScroll = 1
@@ -98,8 +98,8 @@ local function drawMain()
   termFns.SetTextColor(term, colors.white)
   if mode == MODES.select then
     term.write("Select where to move from")
-  else 
-    term.write("Moving from "..mode)
+  else
+    term.write("Moving from " .. mode)
   end
   drawList()
   if itemScroll > 1 then
@@ -180,7 +180,9 @@ while true do
     else
       --Move items and update list
       termFns.SetTextColor(term, colors.lime)
-      termFns.LeftWrite(term, termFns.W(term), 1, "Moving " .. items[index].name .. "...")
+      term.setCursorPos(1, 1)
+      term.clearLine()
+      term.write("Moving " .. items[index].name .. " from "..mode.."...")
       if mode == MODES.itemOutput then
         itemFns.insertItems(config, items[index].name)
       else
