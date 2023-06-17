@@ -16,7 +16,7 @@ local MODES = {
   storage = "Storage"
 }
 
-local config = fileFns.readData("config.txt")
+local config = fileFns.readData("StorageData/config.txt")
 
 local index = 1
 local itemScroll = 1
