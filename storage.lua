@@ -2,14 +2,12 @@
 
 term.clear()
 
-local pretty = require("cc.pretty")
-
-local util = require("Utils.isglassUtil")
-local itemUtil = require("Utils.inventoryUtils")
-local fileUtil = require("Utils.fileUtils")
+local termFns = require("StorageData.terminal")
+local itemFns = require("StorageData.items")
+local fileFns = require("StorageData.files")
 
 local ITEMS_START = 3
-local ITEMS_END = util.H(term) - 2
+local ITEMS_END = termFns.H(term) - 2
 local ITEM_AREA_SIZE = ITEMS_END - ITEMS_START + 1
 
 local MODES = {
@@ -18,7 +16,7 @@ local MODES = {
   storage = "Storage"
 }
 
-local config = fileUtil.readData("config.txt")
+local config = fileFns.readData("config.txt")
 
 local index = 1
 local itemScroll = 1
@@ -31,7 +29,7 @@ local function loadItems()
   local loadOutChest = mode == MODES.output
 
   items = {}
-  local localItems, storedItems = itemUtil.getItems(config)
+  local localItems, storedItems = itemFns.getItems(config)
 
   if loadOutChest then
     for k, v in pairs(localItems) do
@@ -78,13 +76,13 @@ local function drawList()
       break
     end
     if readIndex == index then
-      util.SetTextColor(term, colors.lightBlue)
+      termFns.SetTextColor(term, colors.lightBlue)
       term.write("[" .. item.name .. "]")
-      util.LeftWrite(term, util.W(term), i, "[x" .. item.count .. "]")
+      termFns.LeftWrite(term, termFns.W(term), i, "[x" .. item.count .. "]")
     else
-      util.SetTextColor(term, colors.white)
+      termFns.SetTextColor(term, colors.white)
       term.write(" " .. item.name)
-      util.LeftWrite(term, util.W(term) - 1, i, "x" .. item.count)
+      termFns.LeftWrite(term, termFns.W(term) - 1, i, "x" .. item.count)
     end
   end
 end
@@ -92,7 +90,7 @@ end
 local function drawMain()
   term.clear()
   term.setCursorPos(1, 1)
-  util.SetTextColor(term, colors.white)
+  termFns.SetTextColor(term, colors.white)
   if mode == MODES.select then
     term.write("Select where to move from")
   else 
@@ -100,18 +98,18 @@ local function drawMain()
   end
   drawList()
   if itemScroll > 1 then
-    util.SetTextColor(term, colors.yellow)
+    termFns.SetTextColor(term, colors.yellow)
     term.setCursorPos(1, ITEMS_START)
     term.write("^")
-    util.LeftWrite(term, util.W(term), ITEMS_START, "^")
-    util.SetTextColor(term, colors.white)
+    termFns.LeftWrite(term, termFns.W(term), ITEMS_START, "^")
+    termFns.SetTextColor(term, colors.white)
   end
   if itemScroll + ITEMS_END - ITEMS_START < #items then
-    util.SetTextColor(term, colors.yellow)
+    termFns.SetTextColor(term, colors.yellow)
     term.setCursorPos(1, ITEMS_END)
     term.write("v")
-    util.LeftWrite(term, util.W(term), ITEMS_END, "v")
-    util.SetTextColor(term, colors.white)
+    termFns.LeftWrite(term, termFns.W(term), ITEMS_END, "v")
+    termFns.SetTextColor(term, colors.white)
   end
 
   -- Draw controls at bottom
@@ -167,7 +165,7 @@ while true do
     else
       term.clear()
       term.setCursorPos(1, 1)
-      util.SetTextColor(term, colors.white)
+      termFns.SetTextColor(term, colors.white)
       return
     end
   elseif key == keys.enter then
@@ -176,12 +174,12 @@ while true do
       loadItems()
     else
       --Move items and update list
-      util.SetTextColor(term, colors.lime)
-      util.LeftWrite(term, util.W(term), 1, "Moving " .. items[index].name .. "...")
+      termFns.SetTextColor(term, colors.lime)
+      termFns.LeftWrite(term, termFns.W(term), 1, "Moving " .. items[index].name .. "...")
       if mode == MODES.output then
-        itemUtil.insertItems(config, items[index].name)
+        itemFns.insertItems(config, items[index].name)
       else
-        itemUtil.outputItems(config, items[index].name)
+        itemFns.outputItems(config, items[index].name)
       end
 
       loadItems()
