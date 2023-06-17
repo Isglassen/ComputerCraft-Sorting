@@ -247,6 +247,13 @@ local function outputItems(config, type, name, enchantments, tags)
 	else
 		local _, chests = getItems(config)
 		for _, slot in pairs(chests[type].chests) do
+			local slotCount = output_chest.size()
+			for _, _ in pairs(output_chest.list()) do
+				slotCount = slotCount - 1
+			end
+			if slotCount < 1 then
+				break
+			end
 			local data = peripheral.call(slot.chest, "getItemDetail", slot.slot)
 			if _itemMatches(data, name, enchantments, tags) then output_chest.pullItems(slot.chest, slot.slot) end
 		end

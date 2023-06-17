@@ -1,4 +1,5 @@
 -- TODO: Add fluids
+-- TODO: Option of extra outputs
 
 term.clear()
 
@@ -12,8 +13,12 @@ local ITEM_AREA_SIZE = ITEMS_END - ITEMS_START + 1
 
 local MODES = {
   select = "Select",
-  output = "Output",
-  storage = "Storage"
+  fluid = "Fluids",
+  items = "Items",
+  fluidOutput = "Fluid Output",
+  fluidStorage = "Fluid Storage",
+  itemOutput = "Item Output",
+  itemStorage = "Item Storage",
 }
 
 local config = fileFns.readData("StorageData/config.txt")
@@ -26,7 +31,7 @@ local mode = MODES.select
 local itemList = {}
 
 local function loadItems()
-  local loadOutChest = mode == MODES.output
+  local loadOutChest = mode == MODES.itemOutput
 
   items = {}
   local localItems, storedItems = itemFns.getItems(config)
@@ -47,21 +52,21 @@ local function loadItems()
 end
 
 local function loadModes()
-  mode = MODES.storage
+  mode = MODES.itemStorage
   loadItems()
   local storageCount = 0
   for _, v in pairs(items) do
     storageCount = storageCount + v.count
   end
-  mode = MODES.output
+  mode = MODES.itemOutput
   loadItems()
   local localCount = 0
   for _, v in pairs(items) do
     localCount = localCount + v.count
   end
   items = {
-    { name = MODES.output,  count = localCount },
-    { name = MODES.storage, count = storageCount }
+    { name = MODES.itemOutput,  count = localCount },
+    { name = MODES.itemStorage, count = storageCount }
   }
   mode = MODES.select
 end
@@ -176,7 +181,7 @@ while true do
       --Move items and update list
       termFns.SetTextColor(term, colors.lime)
       termFns.LeftWrite(term, termFns.W(term), 1, "Moving " .. items[index].name .. "...")
-      if mode == MODES.output then
+      if mode == MODES.itemOutput then
         itemFns.insertItems(config, items[index].name)
       else
         itemFns.outputItems(config, items[index].name)
