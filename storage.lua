@@ -207,13 +207,13 @@ while true do
       itemFns.insertItems(config)
       loadItems()
     elseif mode == MODES.itemStorage then
-      termFns.SetTextColor(term, colors.lime)
-      term.setCursorPos(1, 1)
-      term.clearLine()
-      term.write("Re-sorting items in storage")
       itemFns.insertItems(config)
       loadItems()
-      for _, v in pairs(items) do
+      for k, v in pairs(items) do
+        termFns.SetTextColor(term, colors.lime)
+        term.setCursorPos(1, 1)
+        term.clearLine()
+        term.write("Re-sorting items in storage... (" .. k .. "/" .. #items .. ")")
         itemFns.outputItems(config, v.name)
       end
       itemFns.insertItems(config)
