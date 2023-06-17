@@ -25,10 +25,10 @@ local config = fileFns.readData("storage_config.txt")
 
 local index = 1
 local itemScroll = 1
+
+---@type { name: string, count: number, chests: { chest: string, slot: number }[] }[]
 local items = {}
 local mode = MODES.select
-
-local itemList = {}
 
 local function loadItems()
   local loadOutChest = mode == MODES.itemOutput
@@ -118,6 +118,13 @@ local function drawMain()
   end
 
   -- Draw controls at bottom
+
+  termFns.SetTextColor(term, colors.white)
+  term.setCursorPos(1, termFns.H(term))
+  term.blit(
+    "Enter: Move/Select; E: Move all; Backspace: Back;",
+    "4444400000000000000040000000000004444444440000000",
+    "fffffffffffffffffffffffffffffffffffffffffffffffff")
 end
 
 loadModes()
@@ -182,13 +189,34 @@ while true do
       termFns.SetTextColor(term, colors.lime)
       term.setCursorPos(1, 1)
       term.clearLine()
-      term.write("Moving " .. items[index].name .. " from "..mode.."...")
+      term.write("Moving " .. items[index].name .. " from " .. mode .. "...")
       if mode == MODES.itemOutput then
         itemFns.insertItems(config, items[index].name)
       else
         itemFns.outputItems(config, items[index].name)
       end
 
+      loadItems()
+    end
+  elseif key == keys.e then
+    if mode == MODES.itemOutput then
+      termFns.SetTextColor(term, colors.lime)
+      term.setCursorPos(1, 1)
+      term.clearLine()
+      term.write("Emptying items from output...")
+      itemFns.insertItems(config)
+      loadItems()
+    elseif mode == MODES.itemStorage then
+      termFns.SetTextColor(term, colors.lime)
+      term.setCursorPos(1, 1)
+      term.clearLine()
+      term.write("Re-sorting items in storage")
+      itemFns.insertItems(config)
+      loadItems()
+      for _, v in pairs(items) do
+        itemFns.outputItems(config, v.name)
+      end
+      itemFns.insertItems(config)
       loadItems()
     end
   end
