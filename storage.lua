@@ -1,4 +1,4 @@
---term.redirect(peripheral.wrap("top"))
+-- TODO: Add fluids
 
 term.clear()
 
@@ -13,7 +13,7 @@ local ITEMS_END = util.H(term) - 2
 local ITEM_AREA_SIZE = ITEMS_END - ITEMS_START + 1
 
 local MODES = {
-  select = "Select Mode",
+  select = "Select",
   output = "Output",
   storage = "Storage"
 }
@@ -93,7 +93,11 @@ local function drawMain()
   term.clear()
   term.setCursorPos(1, 1)
   util.SetTextColor(term, colors.white)
-  term.write(mode)
+  if mode == MODES.select then
+    term.write("Select where to move from")
+  else 
+    term.write("Moving from "..mode)
+  end
   drawList()
   if itemScroll > 1 then
     util.SetTextColor(term, colors.yellow)
@@ -109,6 +113,8 @@ local function drawMain()
     util.LeftWrite(term, util.W(term), ITEMS_END, "v")
     util.SetTextColor(term, colors.white)
   end
+
+  -- Draw controls at bottom
 end
 
 loadModes()

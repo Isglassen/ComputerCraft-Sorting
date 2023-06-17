@@ -1,4 +1,4 @@
 {
-    outTank="create:fluid_tank_1",
+    outTank="create:fluid_tank_2",
     outChest="minecraft:chest_1",
 }
