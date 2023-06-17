@@ -3,6 +3,8 @@
 -- TODO: Probably needs optimizing (only try if we know we can find something, don't try if destination is full)
 -- TODO: Count empty slots
 
+-- TODO: insert could use pushItems
+
 ---@class itemSlot
 ---@field count number Amount of item
 ---@field name string Name of item
