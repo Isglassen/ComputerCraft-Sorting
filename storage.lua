@@ -147,7 +147,7 @@ local function drawMain()
     term.blit(
       "F:             R: Reload",
       "400000000000000400000000",
-      "ffffffffffffffffffff")
+      "ffffffffffffffffffffffff")
   else
     term.setCursorPos(1, termFns.H(term) - 1)
     term.blit(
@@ -158,7 +158,7 @@ local function drawMain()
     term.blit(
       "F: Search      R: Reload",
       "400000000000000400000000",
-      "ffffffffffffffffffff")
+      "ffffffffffffffffffffffff")
   end
 end
 
