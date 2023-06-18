@@ -1,6 +1,8 @@
 -- TODO: Add fluids
 -- TODO: Option of extra outputs
 
+-- TODO: Better terminate (clear screen first)
+
 term.clear()
 
 local termFns = require("StorageData.terminal")
@@ -162,6 +164,21 @@ local function drawMain()
   end
 end
 
+local function showError(message)
+  term.clear()
+  term.setCursorPos(1, 1)
+  termFns.SetTextColor(term, colors.red)
+  print(message)
+end
+
+local function checkChest()
+  if peripheral.wrap(config.outChest) == nil then
+    showError("Output chest not found")
+    return true
+  end
+end
+
+if checkChest() then return end
 loadModes()
 
 --Main Loop
@@ -208,6 +225,7 @@ while true do
   elseif key == keys.backspace then
     if (mode ~= MODES.select) then
       index = 0
+      if checkChest() then return end
       loadModes()
     else
       term.clear()
@@ -216,6 +234,7 @@ while true do
       return
     end
   elseif key == keys.enter then
+    if checkChest() then return end
     if mode == MODES.select then
       mode = filteredItems[index].name
       loadItems()
@@ -235,6 +254,7 @@ while true do
     end
   elseif key == keys.e then
     if mode == MODES.itemOutput then
+      if checkChest() then return end
       termFns.SetTextColor(term, colors.lime)
       term.setCursorPos(1, 1)
       term.clearLine()
@@ -242,6 +262,7 @@ while true do
       itemFns.insertItems(config)
       loadItems()
     elseif mode == MODES.itemStorage then
+      if checkChest() then return end
       itemFns.insertItems(config)
       loadItems()
       for k, v in pairs(items) do
@@ -255,6 +276,7 @@ while true do
       loadItems()
     end
   elseif key == keys.r then
+    if checkChest() then return end
     if mode == MODES.select then
       loadModes()
     else
