@@ -5,7 +5,8 @@
         "textutils",
         "term",
         "keys",
-        "sleep"
+        "sleep",
+        "read"
     ],
     "Lua.diagnostics.disable": [
         "undefined-field"

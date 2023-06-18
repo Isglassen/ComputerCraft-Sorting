@@ -8,7 +8,7 @@ local itemFns = require("StorageData.items")
 local fileFns = require("StorageData.files")
 
 local ITEMS_START = 3
-local ITEMS_END = termFns.H(term) - 2
+local ITEMS_END = termFns.H(term) - 3
 local ITEM_AREA_SIZE = ITEMS_END - ITEMS_START + 1
 
 local MODES = {
@@ -28,7 +28,18 @@ local itemScroll = 1
 
 ---@type { name: string, count: number, chests: { chest: string, slot: number }[] }[]
 local items = {}
+local filter = ""
+---@type { name: string, count: number, chests: { chest: string, slot: number }[] }[]
+local filteredItems = {}
 local mode = MODES.select
+
+local function filterList()
+  for _, v in pairs(items) do
+    if v.name:find(filter, 1, true) then
+      table.insert(filteredItems, v)
+    end
+  end
+end
 
 local function loadItems()
   local loadOutChest = mode == MODES.itemOutput
@@ -49,9 +60,12 @@ local function loadItems()
       end
     end
   end
+
+  filterList()
 end
 
 local function loadModes()
+  filter = ""
   mode = MODES.itemStorage
   loadItems()
   local storageCount = 0
@@ -69,14 +83,15 @@ local function loadModes()
     { name = MODES.itemStorage, count = storageCount }
   }
   mode = MODES.select
+  filteredItems = items
 end
 
 local function drawList()
   for i = ITEMS_START, ITEMS_END, 1 do
     term.setCursorPos(1, i)
-    local item = ""
+    local item
     local readIndex = itemScroll + i - ITEMS_START
-    item = items[readIndex]
+    item = filteredItems[readIndex]
     if item == nil then
       break
     end
@@ -109,7 +124,7 @@ local function drawMain()
     termFns.LeftWrite(term, termFns.W(term), ITEMS_START, "^")
     termFns.SetTextColor(term, colors.white)
   end
-  if itemScroll + ITEMS_END - ITEMS_START < #items then
+  if itemScroll + ITEMS_END - ITEMS_START < #filteredItems then
     termFns.SetTextColor(term, colors.yellow)
     term.setCursorPos(1, ITEMS_END)
     term.write("v")
@@ -119,12 +134,29 @@ local function drawMain()
 
   -- Draw controls at bottom
 
-  termFns.SetTextColor(term, colors.white)
-  term.setCursorPos(1, termFns.H(term))
-  term.blit(
-    "Enter: Move/Select; E: Move all; Backspace: Back;",
-    "4444400000000000000040000000000004444444440000000",
-    "fffffffffffffffffffffffffffffffffffffffffffffffff")
+  if mode == MODES.select then
+    term.setCursorPos(1, termFns.H(term) - 1)
+    term.blit(
+      "Enter: Select  E:           Backspace: Exit",
+      "4444400000000004000000000000444444444000000",
+      "fffffffffffffffffffffffffffffffffffffffffff")
+    term.setCursorPos(1, termFns.H(term))
+    term.blit(
+      "F:             R: Reload",
+      "400000000000000400000000",
+      "ffffffffffffffffffff")
+  else
+    term.setCursorPos(1, termFns.H(term) - 1)
+    term.blit(
+      "Enter: Move    E: Move all  Backspace: Back",
+      "4444400000000004000000000000444444444000000",
+      "fffffffffffffffffffffffffffffffffffffffffff")
+    term.setCursorPos(1, termFns.H(term))
+    term.blit(
+      "F: Search      R: Reload",
+      "400000000000000400000000",
+      "ffffffffffffffffffff")
+  end
 end
 
 loadModes()
@@ -132,19 +164,19 @@ loadModes()
 --Main Loop
 while true do
   -- Check that scroll is not out of range
-  if #items < ITEM_AREA_SIZE then
+  if #filteredItems < ITEM_AREA_SIZE then
     itemScroll = 1
   end
-  if itemScroll + ITEM_AREA_SIZE - 1 > #items then
-    itemScroll = #items - ITEM_AREA_SIZE
+  if itemScroll + ITEM_AREA_SIZE - 1 > #filteredItems then
+    itemScroll = #filteredItems - ITEM_AREA_SIZE
   end
   if itemScroll < 1 then
     itemScroll = 1
   end
 
   -- Check that index is not out of range
-  if index > #items then
-    index = #items
+  if index > #filteredItems then
+    index = #filteredItems
   end
   if index < 1 then
     index = 1
@@ -164,9 +196,9 @@ while true do
     end
   elseif key == keys.down or key == keys.s then
     --Item below
-    if index < (#items) then
+    if index < (#filteredItems) then
       index = index + 1
-      if ((index - itemScroll) > ITEM_AREA_SIZE - 3) and (itemScroll < (#items - ITEM_AREA_SIZE + 1)) then
+      if ((index - itemScroll) > ITEM_AREA_SIZE - 3) and (itemScroll < (#filteredItems - ITEM_AREA_SIZE + 1)) then
         itemScroll = itemScroll + 1
       end
     end
@@ -182,18 +214,18 @@ while true do
     end
   elseif key == keys.enter then
     if mode == MODES.select then
-      mode = items[index].name
+      mode = filteredItems[index].name
       loadItems()
     else
       --Move items and update list
       termFns.SetTextColor(term, colors.lime)
       term.setCursorPos(1, 1)
       term.clearLine()
-      term.write("Moving " .. items[index].name .. " from " .. mode .. "...")
+      term.write("Moving " .. filteredItems[index].name .. " from " .. mode .. "...")
       if mode == MODES.itemOutput then
-        itemFns.insertItems(config, items[index].name)
+        itemFns.insertItems(config, filteredItems[index].name)
       else
-        itemFns.outputItems(config, items[index].name)
+        itemFns.outputItems(config, filteredItems[index].name)
       end
 
       loadItems()
@@ -219,7 +251,21 @@ while true do
       itemFns.insertItems(config)
       loadItems()
     end
+  elseif key == keys.r then
+    loadItems()
+  elseif key == keys.f then
+    term.setCursorPos(1, termFns.H(term) - 1)
+    term.blit(
+      "Enter: Search",
+      "4444400000000",
+      "fffffffffffff")
+    term.setCursorPos(1, termFns.H(term))
+    termFns.SetTextColor(term, colors.white)
+    term.write("Type nothing to remove search")
+    term.setCursorPos(1, 1)
+    term.clearLine()
+    term.write("> ")
+    filter = read(nil, nil, nil, filter)
+    filterList()
   end
-
-  -- TODO: Button to output/insert all
 end
