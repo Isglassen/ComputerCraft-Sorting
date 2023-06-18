@@ -34,6 +34,7 @@ local filteredItems = {}
 local mode = MODES.select
 
 local function filterList()
+  filteredItems = {}
   for _, v in pairs(items) do
     if v.name:find(filter, 1, true) then
       table.insert(filteredItems, v)
@@ -42,6 +43,7 @@ local function filterList()
 end
 
 local function loadItems()
+  filteredItems = {}
   local loadOutChest = mode == MODES.itemOutput
 
   items = {}
@@ -65,6 +67,7 @@ local function loadItems()
 end
 
 local function loadModes()
+  filteredItems = {}
   filter = ""
   mode = MODES.itemStorage
   loadItems()
