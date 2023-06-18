@@ -259,9 +259,9 @@ while true do
   elseif key == keys.f then
     term.setCursorPos(1, termFns.H(term) - 1)
     term.blit(
-      "Enter: Search",
-      "4444400000000",
-      "fffffffffffff")
+      "Enter: Search                              ",
+      "4444400000000004000000000000444444444000000",
+      "fffffffffffffffffffffffffffffffffffffffffff")
     term.setCursorPos(1, termFns.H(term))
     termFns.SetTextColor(term, colors.white)
     term.write("Type nothing to remove search")
