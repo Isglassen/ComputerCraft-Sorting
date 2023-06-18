@@ -255,7 +255,11 @@ while true do
       loadItems()
     end
   elseif key == keys.r then
-    loadItems()
+    if mode == MODES.select then
+      loadModes()
+    else
+      loadItems()
+    end
   elseif key == keys.f then
     term.setCursorPos(1, termFns.H(term) - 1)
     term.blit(
