@@ -268,6 +268,7 @@ while true do
     term.setCursorPos(1, 1)
     term.clearLine()
     term.write("> ")
+    sleep(0.5)
     filter = read(nil, nil, nil, filter)
     filterList()
   end
