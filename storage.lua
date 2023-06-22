@@ -2,6 +2,12 @@
 -- TODO: Option of extra outputs
 
 -- TODO: Better terminate (clear screen first)
+-- TODO: Optimize more
+--   Don't relist all items after any update
+--     Might need better structure for this
+--     Would also need to not crash if items are in unexpected positions
+--   Don't try to move items to an occupied chest
+--     Would need the max count available in the data structure as well
 
 term.clear()
 
