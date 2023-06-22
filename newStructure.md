@@ -2,7 +2,7 @@
 
 The new item information structure will be as follows, and comes in a class with predefined functions
 
-Unrelated, but check this out for packaging the project
+Unrelated, but check [this](https://github.com/siffiejoe/lua-amalg) out for packaging the project
 
 All bulk proccessing functions should also get an update argument so that updates can be given to the UI
 
