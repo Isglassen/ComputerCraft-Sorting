@@ -12,6 +12,7 @@ The item structure is mainly based of the already existing structure
 {
   empty = { -- Empty slots get their own key
     count = 5 -- Number of empty stacks
+    free = 320 -- Number of items that fit in the stacks (based on normal item size)
     chests = { -- Chests that have empty slots
       ["example:chest_0"] = { -- Chest name as key
         1, -- Slots where the item is stored in the chest
@@ -41,13 +42,14 @@ To save memory but keeping all data listed, items will refer to a chest, which w
 ```lua
 {
   ["example:chest_0"]: {
+    -- TODO: Rework empty to include counts
     count = 23, -- Current number of items in chest
     empty = { -- List of empty slots in the chest
       10
     },
     slots: {
       [1] = {
-        -- TODO
+        -- Item details from inventory.getItemDetail(slot)
       },
       [2] = {},
       [10] = {}
