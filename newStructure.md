@@ -2,6 +2,12 @@
 
 The new item information structure will be as follows, and comes in a class with predefined functions
 
+Unrelated, but check this out for packaging the project
+
+All bulk proccessing functions should also get an update argument so that updates can be given to the UI
+
+UI might as well get a rework i guess
+
 ## Structure
 
 ### Item information
@@ -44,8 +50,11 @@ To save memory but keeping all data listed, items will refer to a chest, which w
   ["example:chest_0"]: {
     -- TODO: Rework empty to include counts
     count = 23, -- Current number of items in chest
-    empty = { -- List of empty slots in the chest
-      10
+    empty = {
+      maxCapacity = 64, -- Max capacity of all empty slots
+      slots = { -- List of empty slots in the chest
+        10
+      }
     },
     slots: {
       [1] = {
@@ -60,7 +69,11 @@ To save memory but keeping all data listed, items will refer to a chest, which w
 
 ## Functions
 
-TODO
+List of functions that are needed to smoothly run this
+
+- refreshAll: Load in all information from scratch
+- refreshChest(chestName): Load in the infromation of one chest from scratch, by subtracting the chest data and then adding the new
+- pullItems(baseName, fromName, fromSlot [, limit [, toSlot]]): Run pullItems on baseName, and update the database accordingly
 
 ## Usage
 
