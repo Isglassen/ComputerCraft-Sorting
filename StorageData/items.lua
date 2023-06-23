@@ -8,8 +8,16 @@
 ---@field free number Amount of empty space that can be added
 ---@field chests {[string]: number[]} Reference to a slot in the chest list
 
+---@class Enchantment
+
 ---@class ItemDetails
----
+---@field count number Amount of item
+---@field displayName string Display name of item
+---@field maxCount number Item limit of item stack
+---@field enchantments Enchantment[] | nil Enchantments on item
+---@field name string Name of item
+---@field nbt string | nil Nbt hash i guess
+---@field tags { [string]: boolean } Table of item tags
 
 ---@class Chest
 ---@field count number Current number of items in chest
