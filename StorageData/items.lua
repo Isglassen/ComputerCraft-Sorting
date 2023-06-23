@@ -25,7 +25,7 @@
 ---@class Chest
 ---@field count number Current number of items in chest
 ---@field empty {emptyCapacity: number, slots: number[]} Information about empty slots
----@field slots {[number]: ItemDetails}
+---@field slots ItemDetails[]
 
 ---@class ItemsConfig
 ---@field outChest string Output chest name
@@ -162,7 +162,7 @@ local function itemsInstancer(config)
 				-- 	updateFunction(done, total, step, steps)
 				-- end
 
-				for slot, info in pairs(t.chests[chest].slots) do
+				for slot, info in ipairs(t.chests[chest].slots) do
 					if info.name == nil then
 						t.items.empty.chests[chest] = nil
 						t.items.empty.count = t.items.empty.count - 1
