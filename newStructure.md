@@ -50,14 +50,14 @@ To save memory but keeping all data listed, items will refer to a chest, which w
   ["example:chest_0"] = {
     count = 23, -- Current number of items in chest
     empty = {
-      maxCapacity = 64, -- Max capacity of all empty slots
+      emptyCapacity = 64, -- Max capacity of all empty slots
       slots = { -- List of empty slots in the chest
         10
       }
     },
     slots = {
       [1] = {
-        -- Item details from inventory.getItemDetail(slot)
+        -- Item details from inventory.getItemDetail(slot), or at least the max count if slot is empty
       },
       [2] = {},
       [10] = {}
