@@ -49,10 +49,22 @@ local function itemsInstancer(config)
 		chests = {},
 		config = config,
 
+		---Clears all data and loads it from scratch
+		---@param t Items
 		refreshAll = function(t)
-			local chests = {peripheral.find("inventory")}
+			t.chests = {}
+			t.items = {
+				empty = {
+					count = 0,
+					free = 0,
+					chests = {}
+				}
+			}
+			local chests = { peripheral.find("inventory") }
 
 			for _, chest in pairs(chests) do
+				local chestName = peripheral.getName(chest)
+
 				local chestData = {
 					count = 0,
 					empty = {
@@ -63,18 +75,64 @@ local function itemsInstancer(config)
 				}
 
 				for slot = 1, chest.size() do
-					-- Add chest data and update item data
+					---@type ItemDetails
+					local details = chest.getItemDetail(slot)
+
+					if details == nil then
+						details = {
+							count = 0,
+							displayName = "",
+							maxCount = chest.getItemLimit(slot),
+							name = nil
+						}
+
+						chestData.empty.emptyCapacity = chestData.empty.emptyCapacity + details.maxCount
+						table.insert(chestData.empty.slots, slot)
+
+						t.items.empty.count = t.items.empty.count + 1
+						t.items.empty.free = t.items.empty.free + details.maxCount
+						if t.items.empty.chests[chestName] == nil then
+							t.items.empty.chests[chestName] = {}
+						end
+						table.insert(t.items.empty.chests[chestName], slot)
+					else
+						chestData.count = chestData.count + details.count
+
+						if t.items[details.name] == nil then
+							t.items[details.name] = {
+								count = details.count,
+								free = details.maxCount - details.count,
+								chests = {
+									[chestName] = { slot }
+								}
+							}
+						else
+							t.items[details.name].count = t.items[details.name].count + details.count
+							t.items[details.name].free = t.items[details.name].free + details.maxCount - details.count
+							if t.items[details.name].chests[chestName] == nil then
+								t.items[details.name].chests[chestName] = { slot }
+							else
+								table.insert(t.items[details.name].chests[chestName], slot)
+							end
+						end
+					end
+
+					chestData.slots[slot] = details
 				end
 
-				t.chests[peripheral.getName(chest)] = chestData
+				t.chests[chestName] = chestData
 			end
 		end,
 
-		refreshChest = function (t, chest)
-			-- TODO
+		---Removes all data from a chest and loads it from scratch
+		---@param t Items
+		---@param chest string Name of the chest
+		refreshChest = function(t, chest)
+			-- TODO Remove exising values
+			-- TODO Add new values
 		end,
-		
-		pullItems = function (t, baseName, fromName, fromSlot, limit, toSlot)
+
+		pullItems = function(t, baseName, fromName, fromSlot, limit, toSlot)
 			-- pullItems on baseName, and update the database accordingly
 			-- TODO
 		end
