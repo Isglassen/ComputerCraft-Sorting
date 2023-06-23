@@ -27,16 +27,43 @@
 ---@field empty {maxCapacity: number, slots: number[]} Information about empty slots
 ---@field slots {[number]: ItemDetails}
 
----@class Items
----@field items {empty: EmptyItem, [string]: Item}
----@field chests {[string]: Chest}
-local items = {
-	items = {
-		empty = {
-			count = 0,
-			free = 0,
-			chests = {}
-		}
-	},
-	chests = {}
-}
+---@class ItemsConfig
+---@field outChest string Output chest name
+
+---Creates an Items object
+---@param config ItemsConfig
+---@return Items
+local function itemsInstancer(config)
+	---@class Items
+	---@field items {empty: EmptyItem, [string]: Item}
+	---@field chests {[string]: Chest}
+	---@field config ItemsConfig
+	local items = {
+		items = {
+			empty = {
+				count = 0,
+				free = 0,
+				chests = {}
+			}
+		},
+		chests = {},
+		config = config,
+
+		refreshAll = function(t)
+			-- TODO
+		end,
+
+		refreshChest = function (t, chest)
+			-- TODO
+		end,
+		
+		pullItems = function (t, baseName, fromName, fromSlot, limit, toSlot)
+			-- pullItems on baseName, and update the database accordingly
+			-- TODO
+		end
+	}
+
+	return items
+end
+
+return itemsInstancer
