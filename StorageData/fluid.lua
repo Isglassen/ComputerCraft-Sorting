@@ -82,7 +82,7 @@ end
 ---@return { string: number } | number amounts fluid: number or just number if a type is specified
 local function listFluid(config, type)
 	local _, tanks = _getFluids(config)
-	if type ~= nil then
+	if type then
 		return tanks[type].amount
 	end
 	local out = {}

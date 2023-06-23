@@ -51,7 +51,8 @@ local function itemsInstancer(config)
 
 		---Clears all data and loads it from scratch
 		---@param t Items
-		refreshAll = function(t)
+		---@param updateFunction? fun(done, total, step, steps) Function called after each slot is finished 
+		refreshAll = function(t, updateFunction)
 			t.chests = {}
 			t.items = {
 				empty = {
@@ -61,6 +62,16 @@ local function itemsInstancer(config)
 				}
 			}
 			local chests = { peripheral.find("inventory") }
+
+			local done, total = 0, 0
+
+			for _, chest in pairs(chests) do
+				total = total + chest.size()
+			end
+
+			if updateFunction then
+				updateFunction(done, total, 1, 1)
+			end
 
 			for _, chest in pairs(chests) do
 				local chestName = peripheral.getName(chest)
@@ -118,18 +129,132 @@ local function itemsInstancer(config)
 					end
 
 					chestData.slots[slot] = details
+
+					done = done + 1
+					if updateFunction then
+						updateFunction(done, total, 1, 1)
+					end
 				end
 
 				t.chests[chestName] = chestData
+			end
+
+			if updateFunction then
+				updateFunction(done, total, 1, 1)
 			end
 		end,
 
 		---Removes all data from a chest and loads it from scratch
 		---@param t Items
 		---@param chest string Name of the chest
-		refreshChest = function(t, chest)
-			-- TODO Remove exising values
-			-- TODO Add new values
+		---@param updateFunction? fun(done, total, step, steps) Function called after each slot is finished 
+		refreshChest = function(t, chest, updateFunction)
+			-- Remove exising values
+			local done, total = 0, 0
+			if t.chests[chest] then
+				total = #t.chests[chest].slots
+				for slot, info in pairs(t.chests[chest].slots) do
+					if info.name == nil then
+						t.items.empty.chests[chest] = nil
+						t.items.empty.count = t.items.empty.count - 1
+						t.items.empty.free = t.items.empty.free - info.maxCount
+					else
+						if t.items[info.name] then
+							t.items[info.name].chests[chest] = nil
+							t.items[info.name].count = t.items[info.name].count - info.count
+							t.items[info.name].free = t.items[info.name].free + info.count - info.maxCount
+						end
+					end
+
+					done = done + 1
+					if updateFunction then
+						updateFunction(done, total, 1, 2)
+					end
+				end
+			end
+
+			if updateFunction then
+				updateFunction(done, total, 1, 2)
+			end
+
+			t.chests[chest] = nil
+
+			-- Add new values
+			total, done = 0, 0
+			local inven = peripheral.wrap(chest)
+			if inven then
+				total = inven.size()
+
+				if updateFunction then
+					updateFunction(done, total, 2, 2)
+				end
+
+				local chestData = {
+					count = 0,
+					empty = {
+						emptyCapacity = 0,
+						slots = {}
+					},
+					slots = {}
+				}
+
+				for slot = 1, inven.size() do
+					---@type ItemDetails
+					local details = inven.getItemDetail(slot)
+
+					if details == nil then
+						details = {
+							count = 0,
+							displayName = "",
+							maxCount = inven.getItemLimit(slot),
+							name = nil
+						}
+
+						chestData.empty.emptyCapacity = chestData.empty.emptyCapacity + details.maxCount
+						table.insert(chestData.empty.slots, slot)
+
+						t.items.empty.count = t.items.empty.count + 1
+						t.items.empty.free = t.items.empty.free + details.maxCount
+						if t.items.empty.chests[chest] == nil then
+							t.items.empty.chests[chest] = {}
+						end
+						table.insert(t.items.empty.chests[chest], slot)
+					else
+						chestData.count = chestData.count + details.count
+
+						if t.items[details.name] == nil then
+							t.items[details.name] = {
+								count = details.count,
+								free = details.maxCount - details.count,
+								chests = {
+									[chest] = { slot }
+								}
+							}
+						else
+							t.items[details.name].count = t.items[details.name].count + details.count
+							t.items[details.name].free = t.items[details.name].free + details.maxCount - details.count
+							if t.items[details.name].chests[chest] == nil then
+								t.items[details.name].chests[chest] = { slot }
+							else
+								table.insert(t.items[details.name].chests[chest], slot)
+							end
+						end
+					end
+
+					chestData.slots[slot] = details
+
+					done = done + 1
+					if updateFunction then
+						updateFunction(done, total, 2, 2)
+					end
+				end
+
+				t.chests[chest] = chestData
+			end
+
+			if updateFunction then
+				updateFunction(done, total, 2, 2)
+			end
 		end,
 
 		pullItems = function(t, baseName, fromName, fromSlot, limit, toSlot)
