@@ -8,6 +8,8 @@ All bulk proccessing functions should also get an update argument so that update
 
 UI might as well get a rework i guess
 
+Use char event for search instead of read (and key to check for backspace, enter, CTRL+Backspace, and such)
+
 ## Structure
 
 ### Item information

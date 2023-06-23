@@ -65,7 +65,7 @@ local function itemsInstancer(config)
 
 			local done, total = 0, 0
 
-			for _, chest in pairs(chests) do
+			for _, chest in ipairs(chests) do
 				total = total + chest.size()
 			end
 
@@ -73,7 +73,7 @@ local function itemsInstancer(config)
 				updateFunction(done, total, 1, 1)
 			end
 
-			for _, chest in pairs(chests) do
+			for _, chest in ipairs(chests) do
 				local chestName = peripheral.getName(chest)
 
 				local chestData = {
