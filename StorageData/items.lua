@@ -268,9 +268,22 @@ local function itemsInstancer(config)
 			end
 		end,
 
+		---comment
+		---@param t Items
+		---@param baseName string Name of the peripheral to call this function on
+		---@param fromName string Name of the chest to move items from
+		---@param fromSlot number The slot index to move items from
+		---@param limit? number The maximum amount of items to move
+		---@param toSlot? number The slot index to move items to
 		pullItems = function(t, baseName, fromName, fromSlot, limit, toSlot)
 			-- pullItems on baseName, and update the database accordingly
 			-- TODO
+			-- getDifference between current and new item count in origin slot
+			-- if toSlot:
+			-- 	 add difference to that slot
+			-- else
+		  --   add difference to that slot
+			--   then continue adding overflow to the next empty slots in the chest
 		end
 	}
 
