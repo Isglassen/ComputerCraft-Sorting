@@ -27,7 +27,7 @@ The item structure is mainly based of the already existing structure
       }
     }
   }
-  ["example:item_name"]: { -- Item name as key
+  ["example:item_name"] = { -- Item name as key
     count = 1234, -- Item amount,
     free = 46, -- Total free spaces in the slots
     chests = { -- Chests that store the item
@@ -37,7 +37,7 @@ The item structure is mainly based of the already existing structure
         10
       }
     }
-  } 
+  }
 }
 ```
 
@@ -47,8 +47,7 @@ To save memory but keeping all data listed, items will refer to a chest, which w
 
 ```lua
 {
-  ["example:chest_0"]: {
-    -- TODO: Rework empty to include counts
+  ["example:chest_0"] = {
     count = 23, -- Current number of items in chest
     empty = {
       maxCapacity = 64, -- Max capacity of all empty slots
@@ -56,7 +55,7 @@ To save memory but keeping all data listed, items will refer to a chest, which w
         10
       }
     },
-    slots: {
+    slots = {
       [1] = {
         -- Item details from inventory.getItemDetail(slot)
       },
