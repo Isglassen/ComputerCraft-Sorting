@@ -9,13 +9,16 @@
 ---@field chests {[string]: number[]} Reference to a slot in the chest list
 
 ---@class Enchantment
+---@field displayName string Display name of enchantment
+---@field level number Enchantment level
+---@field name string Internal name of enchantment
 
 ---@class ItemDetails
 ---@field count number Amount of item
 ---@field displayName string Display name of item
 ---@field maxCount number Item limit of item stack
 ---@field enchantments Enchantment[] | nil Enchantments on item
----@field name string Name of item
+---@field name string Internal name of item
 ---@field nbt string | nil Nbt hash i guess
 ---@field tags { [string]: boolean } Table of item tags
 
