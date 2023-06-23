@@ -63,8 +63,10 @@ local function itemsInstancer(config)
 				}
 
 				for slot = 1, chest.size() do
-					-- Add chest data
+					-- Add chest data and update item data
 				end
+
+				t.chests[peripheral.getName(chest)] = chestData
 			end
 		end,
 
