@@ -149,10 +149,19 @@ local function itemsInstancer(config)
 		---@param chest string Name of the chest
 		---@param updateFunction? fun(done, total, step, steps) Function called after each slot is finished 
 		refreshChest = function(t, chest, updateFunction)
-			-- Remove exising values
+			-- Remove exising values (Logging is commented because it's too quick)
+
+			local step, steps = 0, 1
+
+			-- step, steps = 1, 2
+
 			local done, total = 0, 0
 			if t.chests[chest] then
 				total = #t.chests[chest].slots
+				-- if updateFunction then
+				-- 	updateFunction(done, total, step, steps)
+				-- end
+
 				for slot, info in pairs(t.chests[chest].slots) do
 					if info.name == nil then
 						t.items.empty.chests[chest] = nil
@@ -167,26 +176,28 @@ local function itemsInstancer(config)
 					end
 
 					done = done + 1
-					if updateFunction then
-						updateFunction(done, total, 1, 2)
-					end
+					-- if updateFunction then
+					-- 	updateFunction(done, total, step, steps)
+					-- end
 				end
 			end
 
-			if updateFunction then
-				updateFunction(done, total, 1, 2)
-			end
+			-- if updateFunction then
+			-- 	updateFunction(done, total, step, steps)
+			-- end
 
 			t.chests[chest] = nil
 
 			-- Add new values
-			total, done = 0, 0
+			step = step + 1
+
+			done, total = 0, 0
 			local inven = peripheral.wrap(chest)
 			if inven then
 				total = inven.size()
 
 				if updateFunction then
-					updateFunction(done, total, 2, 2)
+					updateFunction(done, total, step, steps)
 				end
 
 				local chestData = {
@@ -245,7 +256,7 @@ local function itemsInstancer(config)
 
 					done = done + 1
 					if updateFunction then
-						updateFunction(done, total, 2, 2)
+						updateFunction(done, total, step, steps)
 					end
 				end
 
@@ -253,7 +264,7 @@ local function itemsInstancer(config)
 			end
 
 			if updateFunction then
-				updateFunction(done, total, 2, 2)
+				updateFunction(done, total, step, steps)
 			end
 		end,
 
