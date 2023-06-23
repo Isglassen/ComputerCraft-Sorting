@@ -73,6 +73,7 @@ List of functions that are needed to smoothly run this
 - refreshAll: Load in all information from scratch
 - refreshChest(chestName): Load in the infromation of one chest from scratch, by subtracting the chest data and then adding the new
 - pullItems(baseName, fromName, fromSlot [, limit [, toSlot]]): Run pullItems on baseName, and update the database accordingly
+- optimize: Loops through all partially full slots and tries to move their items to other partially full slots
 
 ## Usage
 
