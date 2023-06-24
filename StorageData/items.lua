@@ -28,7 +28,7 @@
 ---@field slots ItemDetails[]
 
 ---@class ItemsConfig
----@field outChest string Output chest name
+---@field itemStorages {[string]: string[]} List of storages other than "Storage", all chests not listed are part of "Storage"
 
 ---Creates an Items object
 ---@param config ItemsConfig
