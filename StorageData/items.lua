@@ -306,6 +306,7 @@ local function itemsInstancer(config)
 			end
 
 			local oldDetails = t.chests[fromName].slots[fromSlot]
+			---@type ItemDetails
 			local newDetails = fromChest.getItemDetail(fromSlot)
 			
 			if newDetails == nil then
@@ -360,6 +361,7 @@ local function itemsInstancer(config)
 
 					-- items[item].chests, items[item].free
 				elseif slotData.name == nil then
+					---@type ItemDetails
 					local newSlot = baseChest.getItemDetail(slot)
 					if newSlot == nil then
 						newSlot = {
