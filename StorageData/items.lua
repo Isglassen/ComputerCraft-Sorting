@@ -192,7 +192,7 @@ local function itemsInstancer(config)
 
 			done, total = 0, 0
 			local inven = peripheral.wrap(chest)
-			if inven then
+			if inven and peripheral.hasType(inven, "inventory") then
 				total = inven.size()
 
 				if updateFunction then
