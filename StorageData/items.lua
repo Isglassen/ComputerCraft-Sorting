@@ -1,30 +1,30 @@
 ---@class EmptyItem
----@field count number Number of free slots
----@field free number Number of items that fit in the slots
----@field chests {[string]: number[]} Reference to a slot in the chest list
+---@field count integer Number of free slots
+---@field free integer Number of items that fit in the slots
+---@field chests {[string]: integer[]} Reference to a slot in the chest list
 
 ---@class Item
----@field count number Total number of item
----@field free number Amount of empty space that can be added
----@field chests {[string]: number[]} Reference to a slot in the chest list
+---@field count integer Total number of item
+---@field free integer Amount of empty space that can be added
+---@field chests {[string]: integer[]} Reference to a slot in the chest list
 
 ---@class Enchantment
 ---@field displayName string Display name of enchantment
----@field level number Enchantment level
+---@field level integer Enchantment level
 ---@field name string Internal name of enchantment
 
 ---@class ItemDetails
----@field count number Amount of item
+---@field count integer Amount of item
 ---@field displayName string Display name of item
----@field maxCount number Item limit of item stack
+---@field maxCount integer Item limit of item stack
 ---@field enchantments Enchantment[] | nil Enchantments on item
 ---@field name string | nil Internal name of item
 ---@field nbt string | nil Nbt hash i guess
 ---@field tags { [string]: boolean } | nil Table of item tags
 
 ---@class Chest
----@field count number Current number of items in chest
----@field empty {emptyCapacity: number, slots: number[]} Information about empty slots
+---@field count integer Current number of items in chest
+---@field empty {emptyCapacity: integer, slots: integer[]} Information about empty slots
 ---@field slots ItemDetails[]
 
 ---@class ItemsConfig
@@ -51,7 +51,7 @@ local function itemsInstancer(config)
 
 		---Clears all data and loads it from scratch
 		---@param t Items
-		---@param updateFunction? fun(done, total, step, steps) Function called after each slot is finished 
+		---@param updateFunction? fun(done, total, step, steps) Function called after each slot is finished
 		refreshAll = function(t, updateFunction)
 			t.chests = {}
 			t.items = {
@@ -93,8 +93,7 @@ local function itemsInstancer(config)
 						details = {
 							count = 0,
 							displayName = "",
-							maxCount = chest.getItemLimit(slot),
-							name = nil
+							maxCount = chest.getItemLimit(slot)
 						}
 
 						chestData.empty.emptyCapacity = chestData.empty.emptyCapacity + details.maxCount
@@ -147,7 +146,7 @@ local function itemsInstancer(config)
 		---Removes all data from a chest and loads it from scratch
 		---@param t Items
 		---@param chest string Name of the chest
-		---@param updateFunction? fun(done, total, step, steps) Function called after each slot is finished 
+		---@param updateFunction? fun(done, total, step, steps) Function called after each slot is finished
 		refreshChest = function(t, chest, updateFunction)
 			-- Remove exising values (Logging is commented because it's too quick)
 
@@ -217,8 +216,7 @@ local function itemsInstancer(config)
 						details = {
 							count = 0,
 							displayName = "",
-							maxCount = inven.getItemLimit(slot),
-							name = nil
+							maxCount = inven.getItemLimit(slot)
 						}
 
 						chestData.empty.emptyCapacity = chestData.empty.emptyCapacity + details.maxCount
@@ -268,22 +266,127 @@ local function itemsInstancer(config)
 			end
 		end,
 
-		---comment
+		---Call pullItems on baseName, and update the database accordingly
 		---@param t Items
+		---@param updateFunction? fun(done, total, step, steps) Function called after each slot is finished
 		---@param baseName string Name of the peripheral to call this function on
 		---@param fromName string Name of the chest to move items from
-		---@param fromSlot number The slot index to move items from
-		---@param limit? number The maximum amount of items to move
-		---@param toSlot? number The slot index to move items to
-		pullItems = function(t, baseName, fromName, fromSlot, limit, toSlot)
-			-- pullItems on baseName, and update the database accordingly
-			-- TODO
-			-- getDifference between current and new item count in origin slot
-			-- if toSlot:
-			-- 	 add difference to that slot
-			-- else
-		  --   add difference to that slot
-			--   then continue adding overflow to the next empty slots in the chest
+		---@param fromSlot integer The slot index to move items from
+		---@param limit? integer The maximum amount of items to move
+		---@param toSlot? integer The slot index to move items to
+		---@return integer? moved The number of items moved
+		pullItems = function(t, updateFunction, baseName, fromName, fromSlot, limit, toSlot)
+			if not peripheral.hasType(baseName, "inventory") then
+				return 0
+			end
+			if not peripheral.hasType(fromName, "inventory") then
+				return 0
+			end
+
+			local baseChest = peripheral.wrap(baseName)
+			local fromChest = peripheral.wrap(fromName)
+
+			baseChest.pullItems(fromName, fromSlot, limit, toSlot)
+
+			if (not t.chests[baseName]) or (not t.chests[fromName]) then
+				local prevDone = 0
+				local trueStep = 1
+				local combinedUpdate = function(done, total, step, steps)
+					if updateFunction then
+						if prevDone > done then
+							trueStep = trueStep + 1
+						end
+						prevDone = done
+						updateFunction(done, total, trueStep, steps * 2)
+					end
+				end
+				t:refreshChest(baseName, combinedUpdate)
+				t:refreshChest(fromName, combinedUpdate)
+				return
+			end
+
+			local oldDetails = t.chests[fromName].slots[fromSlot]
+			local newDetails = fromChest.getItemDetail(fromSlot)
+			
+			if newDetails == nil then
+				newDetails = {
+					count = 0,
+					displayName = "",
+					maxCount = fromChest.getItemLimit(fromSlot)
+				}
+				
+				table.insert(t.chests[fromName].empty.slots, fromSlot)
+				t.chests[fromName].empty.emptyCapacity = t.chests[fromName].empty.emptyCapacity + newDetails.maxCount
+
+				-- items.empty.count, items.empty.chests, items.empty.free items[item].chests, items[item].free
+			end
+
+			t.chests[fromName].slots[fromSlot] = newDetails
+
+			local difference = oldDetails.count - newDetails.count
+
+			if difference == 0 then
+				return 0
+			end
+
+			if oldDetails.nbt then
+				t:refreshChest(baseName, updateFunction)
+				return difference
+			end
+
+			if toSlot ~= nil then
+				local count = t.chests[baseName].slots[toSlot].count + difference
+				t.chests[baseName].slots[toSlot] = oldDetails
+				t.chests[baseName].slots[toSlot].count = count
+				return difference
+			end
+
+			local remaining = difference
+
+			for slot = 1, #t.chests[baseName].slots do
+				if remaining < 1 then
+					break
+				end
+
+				local slotData = t.chests[baseName].slots[slot]
+
+				if slotData.name == oldDetails.name and not slotData.nbt then
+					local space = slotData.maxCount - slotData.count
+					local change = math.min(space, remaining)
+
+					remaining = remaining - change
+
+					t.chests[baseName].slots[slot].count = slotData.count + change
+
+					-- items[item].chests, items[item].free
+				elseif slotData.name == nil then
+					local newSlot = baseChest.getItemDetail(slot)
+					if newSlot == nil then
+						newSlot = {
+							count = 0,
+							displayName = "",
+							maxCount = baseChest.getItemLimit(slot)
+						}
+					end
+					
+					if newSlot.name ~= nil then
+						-- chests[fromName].empty.emptyCapacity, chests[fromName].empty.slots, items.empty.count, items.empty.chests, items.empty.free items[item].chests, items[item].free
+	
+						-- for k, v in pairs(t.chests[fromName].empty.slots) do
+						-- 	if v == fromSlot then
+						-- 		table.remove(t.chests[fromName].empty.slots, k)
+						--    break
+						-- 	end
+						-- end
+					end
+
+					remaining = remaining - newSlot.count
+
+					t.chests[baseName].slots[slot] = newSlot
+				end
+			end
+
+			return difference
 		end
 	}
 

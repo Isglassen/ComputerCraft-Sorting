@@ -15,8 +15,13 @@ end
 
 items:refreshAll(updateFunction)
 
-sleep(10)
+sleep(5)
 
 items:refreshChest("minecraft:chest_5", updateFunction)
+
+sleep(5)
+
+items:pullItems(updateFunction, "minecraft:chest_6", "minecraft:chest_1", 1)
+items:pullItems(updateFunction, "minecraft:chest_6", "minecraft:chest_1", 2)
 
 fileFns.writeData("out.log", { items = items.items, chests = items.chests, config = items.config })
