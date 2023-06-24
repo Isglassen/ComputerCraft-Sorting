@@ -6,7 +6,8 @@
         "term",
         "keys",
         "sleep",
-        "read"
+        "read",
+        "parallel"
     ],
     "Lua.diagnostics.disable": [
         "undefined-field"
