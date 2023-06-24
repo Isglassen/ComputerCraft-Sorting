@@ -333,7 +333,7 @@ local function itemsInstancer(config)
 
 				---@type string
 				local itemName = oldDetails.name
-				if t.items[oldDetails.name].chests[fromName] then
+				if t.items[itemName].chests[fromName] then
 					for k, v in pairs(t.items[itemName].chests[fromName]) do
 						if v == fromSlot then
 							table.remove(t.items[itemName].chests[fromName], k)
@@ -347,6 +347,9 @@ local function itemsInstancer(config)
 			t.chests[fromName].slots[fromSlot] = newDetails
 
 			local difference = oldDetails.count - newDetails.count
+
+			t.chests[baseName].count = t.chests[baseName].count + difference
+			t.chests[fromName].count = t.chests[fromName].count - difference
 
 			if difference == 0 then
 				return 0
