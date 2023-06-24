@@ -283,6 +283,10 @@ local function itemsInstancer(config)
 				return 0
 			end
 
+			if t.chests[fromName] and t.chests[fromName].slots[fromSlot].name == nil then
+				return 0
+			end
+
 			local baseChest = peripheral.wrap(baseName)
 			local fromChest = peripheral.wrap(fromName)
 
@@ -308,18 +312,36 @@ local function itemsInstancer(config)
 			local oldDetails = t.chests[fromName].slots[fromSlot]
 			---@type ItemDetails
 			local newDetails = fromChest.getItemDetail(fromSlot)
-			
+
 			if newDetails == nil then
 				newDetails = {
 					count = 0,
 					displayName = "",
 					maxCount = fromChest.getItemLimit(fromSlot)
 				}
-				
+
 				table.insert(t.chests[fromName].empty.slots, fromSlot)
 				t.chests[fromName].empty.emptyCapacity = t.chests[fromName].empty.emptyCapacity + newDetails.maxCount
 
-				-- items.empty.count, items.empty.chests, items.empty.free items[item].chests, items[item].free
+				t.items.empty.count = t.items.empty.count + 1
+				if t.items.empty.chests[fromName] == nil then
+					t.items.empty.chests[fromName] = { fromSlot }
+				else
+					table.insert(t.items.empty.chests[fromName], fromSlot)
+				end
+				t.items.empty.free = t.items.empty.free + newDetails.maxCount
+
+				---@type string
+				local itemName = oldDetails.name
+				if t.items[oldDetails.name].chests[fromName] then
+					for k, v in pairs(t.items[itemName].chests[fromName]) do
+						if v == fromSlot then
+							table.remove(t.items[itemName].chests[fromName], k)
+							break
+						end
+					end
+				end
+				t.items[itemName].free = t.items[itemName].free + newDetails.maxCount
 			end
 
 			t.chests[fromName].slots[fromSlot] = newDetails
@@ -370,16 +392,36 @@ local function itemsInstancer(config)
 							maxCount = baseChest.getItemLimit(slot)
 						}
 					end
-					
+
 					if newSlot.name ~= nil then
-						-- chests[fromName].empty.emptyCapacity, chests[fromName].empty.slots, items.empty.count, items.empty.chests, items.empty.free items[item].chests, items[item].free
-	
-						-- for k, v in pairs(t.chests[fromName].empty.slots) do
-						-- 	if v == fromSlot then
-						-- 		table.remove(t.chests[fromName].empty.slots, k)
-						--    break
-						-- 	end
-						-- end
+						t.chests[baseName].empty.emptyCapacity = t.chests[baseName].empty.emptyCapacity - slotData.maxCount
+						for k, v in pairs(t.chests[baseName].empty.slots) do
+							if v == slot then
+								table.remove(t.chests[baseName].empty.slots, k)
+								break
+							end
+						end
+
+						t.items.empty.count = t.items.empty.count - 1
+						if t.items.empty.chests[baseName] then
+							for k, v in pairs(t.items.empty.chests[baseName]) do
+								if v == slot then
+									table.remove(t.items.empty.chests[baseName], k)
+									break
+								end
+							end
+						end
+						t.items.empty.free = t.items.empty.free - slotData.maxCount
+
+						---@type string
+						local itemName = newSlot.name
+
+						if not t.items[itemName].chests[baseName] then
+							t.items[itemName].chests[baseName] = { slot }
+						else
+							table.insert(t.items[itemName].chests[baseName], slot)
+						end
+						t.items[itemName].free = t.items[itemName].free + newSlot.maxCount - newSlot.count
 					end
 
 					remaining = remaining - newSlot.count
