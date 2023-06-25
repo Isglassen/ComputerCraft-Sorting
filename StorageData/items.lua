@@ -4,6 +4,8 @@
 ---@field chests {[string]: integer[]} Reference to a slot in the chest list
 
 ---@class Item
+---@field displayName string[] All possible display names found for the item
+---@field tags {[string]: boolean} The tags the item has
 ---@field count integer Total number of item
 ---@field free integer Amount of empty space that can be added
 ---@field chests {[string]: integer[]} Reference to a slot in the chest list
@@ -110,6 +112,8 @@ local function itemsInstancer(config)
 
 						if t.items[details.name] == nil then
 							t.items[details.name] = {
+								displayName = { details.displayName },
+								tags = details.tags,
 								count = details.count,
 								free = details.maxCount - details.count,
 								chests = {
@@ -117,6 +121,11 @@ local function itemsInstancer(config)
 								}
 							}
 						else
+							local hasName = false
+							for name in ipairs(t.items[details.name].displayName) do
+								if name == details.displayName then hasName = true break end
+							end
+							if not hasName then table.insert(t.items[details.name].displayName, details.displayName) end
 							t.items[details.name].count = t.items[details.name].count + details.count
 							t.items[details.name].free = t.items[details.name].free + details.maxCount - details.count
 							if t.items[details.name].chests[chestName] == nil then
@@ -233,6 +242,8 @@ local function itemsInstancer(config)
 
 						if t.items[details.name] == nil then
 							t.items[details.name] = {
+								displayName = { details.displayName },
+								tags = details.tags,
 								count = details.count,
 								free = details.maxCount - details.count,
 								chests = {
@@ -240,6 +251,11 @@ local function itemsInstancer(config)
 								}
 							}
 						else
+							local hasName = false
+							for name in ipairs(t.items[details.name].displayName) do
+								if name == details.displayName then hasName = true break end
+							end
+							if not hasName then table.insert(t.items[details.name].displayName, details.displayName) end
 							t.items[details.name].count = t.items[details.name].count + details.count
 							t.items[details.name].free = t.items[details.name].free + details.maxCount - details.count
 							if t.items[details.name].chests[chest] == nil then
