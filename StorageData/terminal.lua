@@ -45,6 +45,19 @@ local function LeftWrite(terminal, x, y, s)
 	terminal.setCursorPos(x + 1 - s:len(), y)
 	terminal.write(s)
 end
+local function LeftBlit(terminal, x, y, s, fg, bg)
+	expect(1, terminal, "table")
+	expect(2, x, "number")
+	expect(3, y, "number")
+	expect(4, s, "string")
+	expect(5, fg, "string")
+	expect(6, bg, "string")
+	if not Color(terminal) then
+		return LeftWrite(terminal, x, y, s)
+	end
+	terminal.setCursorPos(x + 1 - s:len(), y)
+	terminal.blit(s, fg, bg)
+end
 local function WriteProgressBar(terminal, length, fillLevel, fillCol, emptyCol)
   local text, tCol, bCol = "", "", ""
 
@@ -67,8 +80,8 @@ local function DetailedProgress(terminal, done, total, step, steps, fillCol, emp
 	if steps > 1 then
 		endString = endString.." ["..step.."/"..steps.."]"
 	end
-	WriteProgressBar(terminal, terminal.getSize() - (#endString + #(""..total) - #(""..done)), done / total, fillCol, emptyCol)
-  for _ = 1, #(""..total) - #(""..done) do terminal.write(" ") end
+	WriteProgressBar(terminal, terminal.getSize() - (endString:len() + (""..total):len() - (""..done):len()), done / total, fillCol, emptyCol)
+  for _ = 1, (""..total):len() - (""..done):len() do terminal.write(" ") end
   terminal.write(endString)
 end
 
@@ -81,6 +94,7 @@ return {
 	SetTextColor = SetTextColor,
 	CenterWrite = CenterWrite,
 	LeftWrite = LeftWrite,
+	LeftBlit = LeftBlit,
 	WriteProgressBar = WriteProgressBar,
 	DetailedProgress = DetailedProgress
 }

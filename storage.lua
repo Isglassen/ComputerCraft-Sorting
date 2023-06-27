@@ -35,6 +35,10 @@ local items = require("StorageData.items")(config)
   Background operations:
 
   Refresh chest on peripheral and peripheral_detatch events
+
+  Config:
+
+  Replace underscores with spaces in items
 ]]
 
 local modes = {
@@ -112,6 +116,29 @@ local function drawList(list, index, offset, countList, freeList)
         break
       end
 
+      local itemBlitT, itemBlitB = "", ""
+      local colonIndex = item:find(":", nil, true)
+
+      for i = 1, colonIndex do
+        if readIndex == index then
+          itemBlitT = itemBlitT .. "9"
+        else
+          itemBlitT = itemBlitT .. "8"
+        end
+
+        itemBlitB = itemBlitB .. "f"
+      end
+
+      for i = colonIndex + 1, item:len() do
+        if readIndex == index then
+          itemBlitT = itemBlitT .. "3"
+        else
+          itemBlitT = itemBlitT .. "0"
+        end
+
+        itemBlitB = itemBlitB .. "f"
+      end
+
       local count, free
 
       if countList then
@@ -122,11 +149,30 @@ local function drawList(list, index, offset, countList, freeList)
         free = freeList[readIndex]
       end
 
-      local leftString = nil
+      local leftString, leftBlitT, leftBlitB
       if count then
         leftString = "" .. count
+        leftBlitT, leftBlitB = "", ""
+        for _ = 1, ("" .. count):len() do
+          if readIndex == index then
+            leftBlitT = leftBlitT .. "3"
+          else
+            leftBlitT = leftBlitT .. "0"
+          end
+
+          leftBlitB = leftBlitB .. "f"
+        end
         if free then
           leftString = leftString .. "/" .. free
+          for _ = 1, ("/" .. free):len() do
+            if readIndex == index then
+              leftBlitT = leftBlitT .. "9"
+            else
+              leftBlitT = leftBlitT .. "8"
+            end
+
+            leftBlitB = leftBlitB .. "f"
+          end
         end
       end
 
@@ -135,13 +181,25 @@ local function drawList(list, index, offset, countList, freeList)
       term.clearLine()
       if readIndex == index then
         termFns.SetTextColor(term, colors.lightBlue)
-        term.write("[" .. item .. "]")
-        termFns.LeftWrite(term, termFns.W(term), screenIndex, "[" .. leftString .. "]")
+        term.blit(
+          "[" .. item .. "]",
+          "3" .. itemBlitT .. "3",
+          "f" .. itemBlitB .. "f")
+        termFns.LeftBlit(term, termFns.W(term), screenIndex,
+          "[" .. leftString .. "]",
+          "3" .. leftBlitT .. "3",
+          "f" .. leftBlitB .. "f")
       else
         term.setCursorPos(2, screenIndex)
         termFns.SetTextColor(term, colors.white)
-        term.write(item)
-        termFns.LeftWrite(term, termFns.W(term) - 1, screenIndex, leftString)
+        term.blit(
+          item,
+          itemBlitT,
+          itemBlitB)
+        termFns.LeftBlit(term, termFns.W(term) - 1, screenIndex,
+          leftString,
+          leftBlitT,
+          leftBlitB)
       end
     end
 
@@ -193,10 +251,16 @@ local function drawUI(done, total, step, steps)
     term.write(info.state)
     termFns.LeftWrite(term, termFns.W(term), 2, info.step)
 
-    -- Line -0
-
-
     -- Line -1
+    term.setCursorPos(1, termFns.H(term) - 1)
+    termFns.SetTextColor(term, colors.white)
+    termFns.SetBackgroundColor(term, colors.gray)
+    term.clearLine()
+
+
+    -- Line -0
+    term.setCursorPos(1, termFns.H(term))
+    term.clearLine()
   end
 
   -- SelectArea
@@ -235,7 +299,7 @@ local function main()
   items:refreshAll(drawUI)
 
   info.state = info.source .. " -> " .. info.destination
-  info.step = ""
+  info.step = "(count/free)"
   info.list.index = 1
 
   drawUI()
