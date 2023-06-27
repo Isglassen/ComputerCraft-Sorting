@@ -53,7 +53,7 @@ local info = {
   destination = "Output",
   mode = modes.move,
   list = {
-    index = 1,
+    index = -1,
     offset = 0,
   }
 }
@@ -183,6 +183,7 @@ local function main()
 
   info.state = info.source .. " -> " .. info.destination
   info.step = ""
+  info.list.index = 1
 
   drawUI()
 

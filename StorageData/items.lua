@@ -32,7 +32,7 @@
 ---@class ItemsConfig
 ---@field itemStorages {[string]: string[]} List of storages other than "Storage", all chests not listed are part of "Storage", a chest may only have one storage, and will use the one first found by pairs()
 
--- TODO: Solve the problem of not seperating storages (probably by storing item data per storage, based on itemStorages config)
+-- TODO: Solve the problem of not seperating storages (probably by storing item data per storage, based on itemStorages config, or by calculating storage item numbers on the fly)
 
 ---Creates an Items object
 ---@param config ItemsConfig
