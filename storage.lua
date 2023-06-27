@@ -47,6 +47,7 @@ local modes = {
 }
 
 local info = {
+  terms = { term },
   state = "",
   step = "",
   source = "Storage",
@@ -58,70 +59,108 @@ local info = {
   }
 }
 
+for _, v in pairs(config.monitors) do
+  if peripheral.hasType(v, "monitor") then
+    table.insert(info.terms, peripheral.wrap(v))
+  end
+end
+
 local PARAMS = {
-  ITEMS_START = 3,
-  ITEMS_END = termFns.H(term) - 2,
-  ITEMS_LENGTH = 0,
+  ITEMS_START = function(PARAMS) return 3 end,
+  ITEMS_END = function(PARAMS, terminal) return termFns.H(terminal) - 2 end,
+  ITEMS_LENGTH = function(PARAMS, terminal) return PARAMS:ITEMS_END(terminal) - PARAMS:ITEMS_START() + 1 end,
 }
 
-PARAMS.ITEMS_LENGTH = PARAMS.ITEMS_END - PARAMS.ITEMS_START + 1
-
+---Draws a list of items to the middle area of the screen
+---@param list string[] List of items
+---@param index integer Selected index in the list
+---@param offset integer Offset to where the list starts
+---@param countList? integer[] Count of item
+---@param freeList? integer[] Free items (needs count)
+---@return integer newIndex A new index in case the given one was invalid
+---@return integer newOffset A new offset in case the given one was invalid
 local function drawList(list, index, offset, countList, freeList)
-  for i = 1, PARAMS.ITEMS_LENGTH, 1 do
-    local readIndex = offset + i
-    local screenIndex = i + PARAMS.ITEMS_START - 1
-
-    local item = list[readIndex]
-    if item == nil then
-      break
+  if index < 1 then
+    index = 1
+  end
+  if index > #list then
+    index = #list
+  end
+  if #list < PARAMS:ITEMS_LENGTH(term) then
+    offset = 0
+  else
+    if index - offset < 3 then
+      offset = index - 3
+    end
+    if index - offset > PARAMS:ITEMS_LENGTH(term) - 2 then
+      offset = index - (PARAMS:ITEMS_LENGTH(term) - 2)
     end
 
-    local count, free
+    offset = math.min(#list - PARAMS:ITEMS_LENGTH(term), math.max(0, offset))
+  end
 
-    if countList then
-      count = countList[readIndex]
-    end
+  for _, term in pairs(info.terms) do
+    termFns.SetTextColor(term, colors.white)
+    termFns.SetBackgroundColor(term, colors.black)
 
-    if freeList then
-      free = freeList[readIndex]
-    end
+    for i = 1, PARAMS:ITEMS_LENGTH(term), 1 do
+      local readIndex = offset + i
+      local screenIndex = i + PARAMS:ITEMS_START() - 1
 
-    local leftString = nil
-    if count then
-      leftString = "" .. count
-      if free then
-        leftString = leftString .. "/" .. free
+      local item = list[readIndex]
+      if item == nil then
+        break
       end
-    end
 
-    -- Draw List
-    term.setCursorPos(1, screenIndex)
-    term.clearLine()
-    if readIndex == index then
-      termFns.SetTextColor(term, colors.lightBlue)
-      term.write("[" .. item .. "]")
-      termFns.LeftWrite(term, termFns.W(term), screenIndex, "[" .. leftString .. "]")
-    else
-      term.setCursorPos(2, screenIndex)
-      termFns.SetTextColor(term, colors.white)
-      term.write(item)
-      termFns.LeftWrite(term, termFns.W(term) - 1, screenIndex, leftString)
+      local count, free
+
+      if countList then
+        count = countList[readIndex]
+      end
+
+      if freeList then
+        free = freeList[readIndex]
+      end
+
+      local leftString = nil
+      if count then
+        leftString = "" .. count
+        if free then
+          leftString = leftString .. "/" .. free
+        end
+      end
+
+      -- Draw List
+      term.setCursorPos(1, screenIndex)
+      term.clearLine()
+      if readIndex == index then
+        termFns.SetTextColor(term, colors.lightBlue)
+        term.write("[" .. item .. "]")
+        termFns.LeftWrite(term, termFns.W(term), screenIndex, "[" .. leftString .. "]")
+      else
+        term.setCursorPos(2, screenIndex)
+        termFns.SetTextColor(term, colors.white)
+        term.write(item)
+        termFns.LeftWrite(term, termFns.W(term) - 1, screenIndex, leftString)
+      end
     end
 
     -- Draw List Indicators
     if offset > 0 then
       termFns.SetTextColor(term, colors.yellow)
-      term.setCursorPos(1, PARAMS.ITEMS_START)
+      term.setCursorPos(1, PARAMS:ITEMS_START())
       term.write("^")
-      termFns.LeftWrite(term, termFns.W(term), PARAMS.ITEMS_START, "^")
+      termFns.LeftWrite(term, termFns.W(term), PARAMS:ITEMS_START(), "^")
     end
-    if #list > PARAMS.ITEMS_LENGTH then
+    if #list - offset > PARAMS:ITEMS_LENGTH(term) then
       termFns.SetTextColor(term, colors.yellow)
-      term.setCursorPos(1, PARAMS.ITEMS_END)
+      term.setCursorPos(1, PARAMS:ITEMS_END(term))
       term.write("v")
-      termFns.LeftWrite(term, termFns.W(term), PARAMS.ITEMS_END, "v")
+      termFns.LeftWrite(term, termFns.W(term), PARAMS:ITEMS_END(term), "v")
     end
   end
+
+  return index, offset
 end
 
 ---Draws the ui
@@ -130,32 +169,37 @@ end
 ---@param step? integer If loading something, current step
 ---@param steps? integer If loading something, total step
 local function drawUI(done, total, step, steps)
-  termFns.SetTextColor(term, colors.white)
-  termFns.SetBackgroundColor(term, colors.black)
-  term.clear()
+  for _, term in pairs(info.terms) do
+    termFns.SetTextColor(term, colors.white)
+    termFns.SetBackgroundColor(term, colors.black)
+    term.clear()
 
-  -- Line 1
-  term.setCursorPos(1, 1)
-  termFns.SetTextColor(term, colors.white)
-  termFns.SetBackgroundColor(term, colors.gray)
-  term.clearLine()
+    -- Line 1
+    term.setCursorPos(1, 1)
+    termFns.SetTextColor(term, colors.white)
+    termFns.SetBackgroundColor(term, colors.gray)
+    term.clearLine()
 
-  if done then
-    termFns.DetailedProgress(term, done, total, step, steps, colors.lime, colors.black)
-  else
+    if done then
+      termFns.DetailedProgress(term, done, total, step, steps, colors.lime, colors.black)
+    else
 
+    end
+
+    -- Line 2
+    term.setCursorPos(1, 2)
+    term.clearLine()
+
+    term.write(info.state)
+    termFns.LeftWrite(term, termFns.W(term), 2, info.step)
+
+    -- Line -0
+
+
+    -- Line -1
   end
 
-  -- Line 2
-  term.setCursorPos(1, 2)
-  term.clearLine()
-
-  term.write(info.state)
-  termFns.LeftWrite(term, termFns.W(term), 2, info.step)
-
   -- SelectArea
-  termFns.SetTextColor(term, colors.white)
-  termFns.SetBackgroundColor(term, colors.black)
   if info.mode == modes.move then
     local list, counts, free = {}, {}, {}
     for k, v in pairs(items.items) do
@@ -166,13 +210,22 @@ local function drawUI(done, total, step, steps)
       end
     end
 
-    drawList(list, info.list.index, info.list.offset, counts, free)
+    info.list.index, info.list.offset = drawList(list, info.list.index, info.list.offset, counts, free)
   end
+end
 
-  -- Line -0
+local function clickHandling(button, x, y)
+  -- TODO
+end
 
-
-  -- Line -1
+local function keyHandling(key, holding)
+  if key == keys.s or key == keys.down then
+    info.list.index = info.list.index + 1
+    drawUI()
+  elseif key == keys.w or key == keys.up then
+    info.list.index = info.list.index - 1
+    drawUI()
+  end
 end
 
 local function main()
@@ -188,17 +241,60 @@ local function main()
   drawUI()
 
   while true do
-    local eventData = { os.pullEvent() }
+    local eventData = { os.pullEventRaw() }
+
+    if eventData[1] == "peripheral" or eventData[1] == "peripheral_detatch" then
+      if eventData[1] == "peripheral" then
+        for _, v in pairs(config.monitors) do
+          if v == eventData[2] then
+            table.insert(info.terms, peripheral.wrap(v))
+            break
+          end
+        end
+      elseif eventData[1] == "peripheral_detatch" then
+        for k, v in pairs(info.terms) do
+          if peripheral.getName(v) == eventData[2] then
+            if peripheral.hasType(v, "monitor") then
+              table.remove(info.terms, k)
+            end
+            break
+          end
+        end
+      end
+      local oldState, oldStep = info.state, info.step
+      info.state = "Updating Chest..."
+      info.step = "Reading Items"
+
+      items:refreshChest(eventData[2], drawUI)
+
+      info.state = oldState
+      info.step = oldStep
+
+      drawUI()
+    elseif eventData[1] == "term_resize" then
+      drawUI()
+    elseif eventData[1] == "key" then
+      keyHandling(eventData[2], eventData[3])
+    elseif eventData[1] == "mouse_click" then
+      clickHandling(eventData[1], eventData[3], eventData[4])
+    elseif eventData[1] == "mouse_scroll" then
+      if eventData[4] <= PARAMS:ITEMS_END(term) and eventData[4] >= PARAMS:ITEMS_START() then
+        info.list.index = info.list.index + eventData[2]
+        drawUI()
+      end
+    end
   end
 end
 
 local function terminateHandler()
   os.pullEventRaw("terminate")
-  termFns.SetTextColor(term, colors.red)
-  termFns.SetBackgroundColor(term, colors.black)
-  term.clear()
-  term.setCursorPos(1, 1)
+  for _, term in pairs(info.terms) do
+    termFns.SetTextColor(term, colors.red)
+    termFns.SetBackgroundColor(term, colors.black)
+    term.clear()
+    term.setCursorPos(1, 1)
+  end
   print("Terminated")
 end
 
-parallel.waitForAny(main, terminateHandler)
+parallel.waitForAny(terminateHandler, main)

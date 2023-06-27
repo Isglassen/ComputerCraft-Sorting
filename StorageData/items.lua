@@ -33,6 +33,27 @@
 ---@field itemStorages {[string]: string[]} List of storages other than "Storage", all chests not listed are part of "Storage", a chest may only have one storage, and will use the one first found by pairs()
 
 -- TODO: Solve the problem of not seperating storages (probably by storing item data per storage, based on itemStorages config, or by calculating storage item numbers on the fly)
+--[[
+	{
+		storages: {
+			count: 0,
+			free: 0,
+			chests: string[]
+		}
+		items: {
+			count: 0,
+			free: 0,
+			storages: {
+				[storage]: {
+					empty: EmptyItem,
+					[item]: Item
+				}
+			}
+		}
+	}
+]]
+
+-- TODO: Functions to more easily update parts of the data (update chest slot function)
 
 ---Creates an Items object
 ---@param config ItemsConfig
