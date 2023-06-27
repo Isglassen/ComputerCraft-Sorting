@@ -238,7 +238,7 @@ local function drawUI(done, total, step, steps)
     termFns.SetBackgroundColor(term, colors.gray)
     term.clearLine()
 
-    if done then
+    if done and total and step and steps then
       termFns.DetailedProgress(term, done, total, step, steps, colors.lime, colors.black)
     else
 

@@ -568,7 +568,7 @@ function rednet.close(modem) end
 function rednet.isOpen(modem) local _ return _ end
 
 ---Allows a computer or turtle with an attached modem to send a message intended for a sycomputer with a specific ID. At least one such modem must first be opened before sending is possible.
----@param recipient number The ID of the receiving computer.
+---@param recipient integer The ID of the receiving computer.
 ---@param message any The message to send. Like with modem.transmit, this can contain any primitive type (numbers, booleans and strings) as well as tables. Other types (like functions), as well as metatables, will not be transmitted.
 ---@param protocol? string The "protocol" to send this message under. When using rednet.receive one can filter to only receive messages sent under a particular protocol.
 ---@return boolean sent If this message was successfully sent (i.e. if rednet is currently open). Note, this does not guarantee the message was actually received.
@@ -582,7 +582,7 @@ function rednet.broadcast(message, protocol) end
 ---Wait for a rednet message to be received, or until timeout seconds have elapsed.
 ---@param protocolFilter? string The protocol the received message must be sent with. If specified, any messages not sent under this protocol will be discarded.
 ---@param timeout number The number of seconds to wait if no message is received.
----@return number | nil senderID The computer which sent this message OR nil if the timeout elapsed and no message was received.
+---@return integer | nil senderID The computer which sent this message OR nil if the timeout elapsed and no message was received.
 ---@return any message The received message
 ---@return string | nil protocol The protocol this message was sent under.
 function rednet.receive(protocolFilter, timeout) local _ return _, _, _ end
@@ -590,7 +590,7 @@ function rednet.receive(protocolFilter, timeout) local _ return _, _, _ end
 ---Wait for a rednet message to be received, or until timeout seconds have elapsed.
 ---@param protocolFilter? string The protocol the received message must be sent with. If specified, any messages not sent under this protocol will be discarded.
 ---@param timeout nil The number of seconds to wait if no message is received.
----@return number senderID The computer which sent this message OR nil if the timeout elapsed and no message was received.
+---@return integer senderID The computer which sent this message OR nil if the timeout elapsed and no message was received.
 ---@return any message The received message
 ---@return string | nil protocol The protocol this message was sent under.
 function rednet.receive(protocolFilter, timeout) local _ return _, _, _ end
@@ -607,7 +607,7 @@ function rednet.unhost(protocol) end
 ---Search the local rednet network for systems hosting the desired protocol and returns any computer IDs that respond as "registered" against it.
 ---@param protocol string The protocol to search for.
 ---@param hostname? string The hostname to search for.
----@return number | nil ids Ccomputer IDs hosting the given protocol. nil of none exist
+---@return integer | nil ids Ccomputer IDs hosting the given protocol. nil of none exist
 ---@return ... More ids
 function rednet.lookup(protocol, hostname) local _ return _ end
 
