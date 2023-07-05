@@ -56,7 +56,7 @@ end
 ---@field nbt string | nil                   Nbt hash, nil if empty or no nbt tags
 ---@field tags { [string]: boolean } | nil   Table of item tags, nil if empty
 
--- TODO: Solve the problem of not seperating storages (probably by storing item data per storage, based on itemStorages config, or by calculating storage item numbers on the fly)
+
 --[[
 {
 	storages: {
@@ -104,7 +104,6 @@ end
 }
 ]]
 
--- TODO: Functions to more easily update parts of the data (update chest slot function)
 
 ---Creates an Items object
 ---@param storageConfig StorageConfig

@@ -123,8 +123,8 @@ local PARAMS = {
 ---@param list string[] List of items
 ---@param index integer Selected index in the list
 ---@param offset integer Offset to where the list starts
----@param countList? integer[] Count of item
----@param freeList? integer[] Free items (needs count)
+---@param countList? string[] Count of item
+---@param freeList? string[] Free items (needs count)
 ---@return integer newIndex A new index in case the given one was invalid
 ---@return integer newOffset A new offset in case the given one was invalid
 local function drawList(list, index, offset, countList, freeList)
@@ -195,9 +195,9 @@ local function drawList(list, index, offset, countList, freeList)
 
       local leftString, leftBlitT, leftBlitB
       if count then
-        leftString = "" .. count
+        leftString = count
         leftBlitT, leftBlitB = "", ""
-        for _ = 1, ("" .. count):len() do
+        for _ = 1, count:len() do
           if readIndex == index then
             leftBlitT = leftBlitT .. "3"
           else
@@ -208,7 +208,7 @@ local function drawList(list, index, offset, countList, freeList)
         end
         if free then
           leftString = leftString .. "/" .. free
-          for _ = 1, ("/" .. free):len() do
+          for _ = 1, free:len() do
             if readIndex == index then
               leftBlitT = leftBlitT .. "9"
             else
@@ -315,8 +315,8 @@ local function drawUI(done, total, step, steps)
     for k, v in pairs(manager.storages[info.source].items) do
       if k ~= "empty" then
         table.insert(list, k)
-        table.insert(counts, v.count)
-        table.insert(free, v.free)
+        table.insert(counts, "" .. v.count)
+        table.insert(free, "" .. v.free)
       end
     end
 
