@@ -1,9 +1,53 @@
 local fileFns = require("StorageData.files")
 local termFns = require("StorageData.terminal")
 
-local config = fileFns.readData("storage_config.txt")
+local programPath = fs.combine(shell.getRunningProgram(), "../")
 
-local items = require("StorageData.items")(config)
+---Returns information for a storage from a file
+---@param file CCFileRead
+---@return string? name Name of the storage, or nil if the file is empty
+---@return string[] chests Chests in the storage
+local function parseStorage(file)
+  local name = file.readLine()
+  local chests = {}
+  local read = file.readLine()
+  while read ~= nil do
+    table.insert(chests, read)
+    read = file.readLine()
+  end
+  return name, chests
+end
+
+-- TODO Load storages from ./storages/*.storage
+-- Format is line 1: Storage name, one chest per line after that
+local storages = {}
+
+for _, path in pairs(fs.find(fs.combine(programPath, "./storages/*.storage"))) do
+  ---@type CCFileRead
+  ---@diagnostic disable-next-line: assign-type-mismatch
+  local file = fs.open(path, "r")
+  if file ~= nil then
+    local name, chests = parseStorage(file)
+    file.close()
+
+    if name then
+      if storages[name] ~= nil then
+        for _, chest in ipairs(chests) do
+          table.insert(storages[name], chest)
+        end
+      else
+        storages[name] = chests
+      end
+    end
+  end
+end
+
+---@type {monitors: string[]}
+local config = fileFns.readData(fs.combine(programPath, "./storage.cfg"))
+
+---@type ItemManager
+local manager = require("StorageData.items")(storages)
+
 
 --[[
   Needed things:
@@ -54,7 +98,7 @@ local info = {
   terms = { term },
   state = "",
   step = "",
-  source = "Storage",
+  source = "Main Storage",
   destination = "Output",
   mode = modes.move,
   list = {
@@ -104,8 +148,8 @@ local function drawList(list, index, offset, countList, freeList)
   end
 
   for _, term in pairs(info.terms) do
-    termFns.SetTextColor(term, colors.white)
-    termFns.SetBackgroundColor(term, colors.black)
+    term.setTextColor(colors.white)
+    term.setBackgroundColor(colors.black)
 
     for i = 1, PARAMS:ITEMS_LENGTH(term), 1 do
       local readIndex = offset + i
@@ -180,7 +224,7 @@ local function drawList(list, index, offset, countList, freeList)
       term.setCursorPos(1, screenIndex)
       term.clearLine()
       if readIndex == index then
-        termFns.SetTextColor(term, colors.lightBlue)
+        term.setTextColor(colors.lightBlue)
         term.blit(
           "[" .. item .. "]",
           "3" .. itemBlitT .. "3",
@@ -191,7 +235,7 @@ local function drawList(list, index, offset, countList, freeList)
           "f" .. leftBlitB .. "f")
       else
         term.setCursorPos(2, screenIndex)
-        termFns.SetTextColor(term, colors.white)
+        term.setTextColor(colors.white)
         term.blit(
           item,
           itemBlitT,
@@ -205,13 +249,13 @@ local function drawList(list, index, offset, countList, freeList)
 
     -- Draw List Indicators
     if offset > 0 then
-      termFns.SetTextColor(term, colors.yellow)
+      term.setTextColor(colors.yellow)
       term.setCursorPos(1, PARAMS:ITEMS_START())
       term.write("^")
       termFns.LeftWrite(term, termFns.W(term), PARAMS:ITEMS_START(), "^")
     end
     if #list - offset > PARAMS:ITEMS_LENGTH(term) then
-      termFns.SetTextColor(term, colors.yellow)
+      term.setTextColor(colors.yellow)
       term.setCursorPos(1, PARAMS:ITEMS_END(term))
       term.write("v")
       termFns.LeftWrite(term, termFns.W(term), PARAMS:ITEMS_END(term), "v")
@@ -228,14 +272,16 @@ end
 ---@param steps? integer If loading something, total step
 local function drawUI(done, total, step, steps)
   for _, term in pairs(info.terms) do
-    termFns.SetTextColor(term, colors.white)
-    termFns.SetBackgroundColor(term, colors.black)
+    pcall(term.setTextScale, 0.5)
+
+    term.setTextColor(colors.white)
+    term.setBackgroundColor(colors.black)
     term.clear()
 
     -- Line 1
     term.setCursorPos(1, 1)
-    termFns.SetTextColor(term, colors.white)
-    termFns.SetBackgroundColor(term, colors.gray)
+    term.setTextColor(colors.white)
+    term.setBackgroundColor(colors.gray)
     term.clearLine()
 
     if done and total and step and steps then
@@ -253,8 +299,8 @@ local function drawUI(done, total, step, steps)
 
     -- Line -1
     term.setCursorPos(1, termFns.H(term) - 1)
-    termFns.SetTextColor(term, colors.white)
-    termFns.SetBackgroundColor(term, colors.gray)
+    term.setTextColor(colors.white)
+    term.setBackgroundColor(colors.gray)
     term.clearLine()
 
 
@@ -266,7 +312,7 @@ local function drawUI(done, total, step, steps)
   -- SelectArea
   if info.mode == modes.move then
     local list, counts, free = {}, {}, {}
-    for k, v in pairs(items.items) do
+    for k, v in pairs(manager.storages[info.source].items) do
       if k ~= "empty" then
         table.insert(list, k)
         table.insert(counts, v.count)
@@ -296,7 +342,7 @@ local function main()
   info.state = "Loading..."
   info.step = "Reading Items"
 
-  items:refreshAll(drawUI)
+  manager:refreshAll(drawUI)
 
   info.state = info.source .. " -> " .. info.destination
   info.step = "(count/free)"
@@ -304,20 +350,43 @@ local function main()
 
   drawUI()
 
-  while true do
-    local eventData = { os.pullEventRaw() }
+  local eventQueue = {}
+  local queueLen = 0
 
-    if eventData[1] == "peripheral" or eventData[1] == "peripheral_detatch" then
-      if eventData[1] == "peripheral" then
-        for _, v in pairs(config.monitors) do
-          if v == eventData[2] then
-            table.insert(info.terms, peripheral.wrap(v))
-            break
-          end
+  local function execute()
+    local eventData
+    if queueLen == 0 then
+      eventData = { os.pullEventRaw() }
+    else
+      eventData = table.remove(eventQueue, 1)
+    end
+
+    if eventData[1] == "peripheral" then
+      for _, v in pairs(config.monitors) do
+        if v == eventData[2] then
+          table.insert(info.terms, peripheral.wrap(v))
+          drawUI()
+          break
         end
-      elseif eventData[1] == "peripheral_detatch" then
-        for k, v in pairs(info.terms) do
-          if peripheral.getName(v) == eventData[2] then
+      end
+
+      if peripheral.hasType(eventData[2], "inventory") then
+        local oldState, oldStep = info.state, info.step
+        info.state = "Updating Chest..."
+        info.step = "Reading Items"
+
+        manager:addChest(eventData[2], drawUI)
+
+        info.state = oldState
+        info.step = oldStep
+
+        drawUI()
+      end
+    elseif eventData[1] == "peripheral_detach" then
+      for k, v in pairs(info.terms) do
+        local ok, name = pcall(peripheral.getName, v)
+        if ok then
+          if name == eventData[2] then
             if peripheral.hasType(v, "monitor") then
               table.remove(info.terms, k)
             end
@@ -325,17 +394,13 @@ local function main()
           end
         end
       end
-      local oldState, oldStep = info.state, info.step
-      info.state = "Updating Chest..."
-      info.step = "Reading Items"
 
-      items:refreshChest(eventData[2], drawUI)
-
-      info.state = oldState
-      info.step = oldStep
+      if manager.chests[eventData[2]] then
+        manager:removeChest(eventData[2])
+      end
 
       drawUI()
-    elseif eventData[1] == "term_resize" then
+    elseif eventData[1] == "term_resize" or eventData[1] == "monitor_resize" then
       drawUI()
     elseif eventData[1] == "key" then
       keyHandling(eventData[2], eventData[3])
@@ -348,13 +413,27 @@ local function main()
       end
     end
   end
+
+  local function catchEvents()
+    if queueLen == 0 then
+      os.pullEventRaw()
+    end
+    while true do
+      table.insert(eventQueue, { os.pullEventRaw() })
+    end
+  end
+
+  while true do
+    parallel.waitForAny(catchEvents, execute)
+    queueLen = #eventQueue
+  end
 end
 
 local function terminateHandler()
   os.pullEventRaw("terminate")
   for _, term in pairs(info.terms) do
-    termFns.SetTextColor(term, colors.red)
-    termFns.SetBackgroundColor(term, colors.black)
+    term.setTextColor(colors.red)
+    term.setBackgroundColor(colors.black)
     term.clear()
     term.setCursorPos(1, 1)
   end

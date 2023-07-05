@@ -120,13 +120,21 @@ end
 local function DetailedProgress(terminal, done, total, step, steps, fillCol, emptyCol)
 	local y = terminal.getCursorPos()
 	terminal.setCursorPos(1, y)
-	local endString = " "..done.."/"..total
+	local endString1 = " "..done.."/"..total
+	local endString2
+
+	local subAmount = endString1:len() + (""..total):len() - (""..done):len()
 	if steps > 1 then
-		endString = endString.." ["..step.."/"..steps.."]"
+		endString2 = " ["..step.."/"..steps.."]"
+		subAmount = subAmount + endString2:len() + (""..steps):len() - (""..step):len()
 	end
-	WriteProgressBar(terminal, terminal.getSize() - (endString:len() + (""..total):len() - (""..done):len()), done / total, fillCol, emptyCol)
+	WriteProgressBar(terminal, terminal.getSize() - subAmount, done / total, fillCol, emptyCol)
   for _ = 1, (""..total):len() - (""..done):len() do terminal.write(" ") end
-  terminal.write(endString)
+  terminal.write(endString1)
+	if endString2 then
+		for _ = 1, (""..steps):len() - (""..step):len() do terminal.write(" ") end
+		terminal.write(endString2)
+	end
 end
 
 return {

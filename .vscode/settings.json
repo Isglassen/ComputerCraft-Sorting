@@ -7,7 +7,9 @@
         "keys",
         "sleep",
         "read",
-        "parallel"
+        "parallel",
+        "shell",
+        "multishell"
     ],
     "Lua.diagnostics.disable": [
         "undefined-field"

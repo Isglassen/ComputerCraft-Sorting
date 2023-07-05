@@ -1,478 +1,409 @@
+local DEFAULT_STORAGE = "Main Storage"
+
+---Checks if an item is included in the table
+---@generic T item type
+---@param table T[] Table to check
+---@param item T Item to check for
+---@return boolean found Item found
+local function tableIncludes(table, item)
+	for k, v in pairs(table) do
+		if v == item then return true end
+	end
+	return false
+end
+
+---@alias StorageConfig {[string]: string[]} List of storages other than "Storage", all chests not listed are part of "Storage", a chest may only have one storage, and will use the one first found by pairs()
+
+---@alias UpdateFn fun(done, total, step, steps)
+
+
+---@class Storage
+---@field count integer      Number of items
+---@field free integer       Number of total maxCount of empty slots
+---@field reserved integer   Number of total free of all non-empty items
+---@field chests string[]    List of chests in the storage
+---@field items ItemList     List of items and empty slots in storage
+
+---@class ItemList
+---@field empty EmptyItem   Empty slots
+---@field [string] Item     Items
+
 ---@class EmptyItem
----@field count integer Number of free slots
----@field free integer Number of items that fit in the slots
----@field chests {[string]: integer[]} Reference to a slot in the chest list
+---@field count integer                  Number of free slots
+---@field free integer                   Number of items that fit in the slots
+---@field chests {[string]: integer[]}   Chest -> Slots
 
 ---@class Item
----@field displayName string[] All possible display names found for the item
----@field tags {[string]: boolean} The tags the item has
----@field count integer Total number of item
----@field free integer Amount of empty space that can be added
----@field chests {[string]: integer[]} Reference to a slot in the chest list
+---@field displayName string             The displayName of the first of this item, most likely unnamed
+---@field tags {[string]: boolean}       The tags of the first of this item, most likely correct (and I don't think they can change)
+---@field count integer                  Total number of item
+---@field free integer                   Total maxCount - count
+---@field chests {[string]: integer[]}   Chest -> Slots
 
----@class Enchantment
----@field displayName string Display name of enchantment
----@field level integer Enchantment level
----@field name string Internal name of enchantment
-
----@class ItemDetails
----@field count integer Amount of item
----@field displayName string Display name of item
----@field maxCount integer Item limit of item stack
----@field enchantments Enchantment[] | nil Enchantments on item
----@field name string | nil Internal name of item
----@field nbt string | nil Nbt hash i guess
----@field tags { [string]: boolean } | nil Table of item tags
 
 ---@class Chest
----@field count integer Current number of items in chest
----@field empty {emptyCapacity: integer, slots: integer[]} Information about empty slots
----@field slots ItemDetails[]
+---@field count integer      Current number of items in chest
+---@field free integer       Total maxCount of all empty slots
+---@field reserved integer   Total maxCount - count of all non-empty slots
+---@field storage string     The first storage the chest was listed as in the config
+---@field slots ItemSlot[]   List of slots in the chest
 
----@class ItemsConfig
----@field itemStorages {[string]: string[]} List of storages other than "Storage", all chests not listed are part of "Storage", a chest may only have one storage, and will use the one first found by pairs()
+---@class ItemSlot
+---@field count integer                      Amount of item
+---@field maxCount integer                   Item limit of the slot
+---@field name string | nil                  Internal name of item, nil if empty
+---@field displayName string                 Display name of the item, should be "" if empty
+---@field nbt string | nil                   Nbt hash, nil if empty or no nbt tags
+---@field tags { [string]: boolean } | nil   Table of item tags, nil if empty
 
 -- TODO: Solve the problem of not seperating storages (probably by storing item data per storage, based on itemStorages config, or by calculating storage item numbers on the fly)
 --[[
-	{
-		storages: {
-			count: 0,
-			free: 0,
-			chests: string[]
-		}
-		items: {
-			count: 0,
-			free: 0,
-			storages: {
-				[storage]: {
-					empty: EmptyItem,
-					[item]: Item
+{
+	storages: {
+		[storage]: {
+			count: integer      Number of items
+			free: integer       Number of total maxCount of empty slots
+			reserved: integer   Number of total free of all non-empty items
+			chests: string[]    List of chests in the storage
+			items: {
+				empty: {
+					count: integer         Number of free slots
+					free: integer          Number of items that fit in the slots
+					chests: {
+						[chest]: integer[]   Chest -> Slots
+					}
+				},
+				[item]: {
+					displayName: string         The displayName of the first of this item, most likely unnamed
+					tags: {[string]: boolean}   The tags of the first of this item, most likely correct (and I don't think they can change)
+					count: integer              Total number of item
+					free: integer               Total maxCount - count
+					chests: {
+						[string]: integer[]       Chest -> Slots
+					}
 				}
 			}
 		}
 	}
+	chests: {
+		[chest]: {
+			count: integer      Current number of items in chest
+			free: integer       Total maxCount of all empty slots
+			reserved: integer   Total maxCount - count of all non-empty slots
+			storage: string     The first storage the chest was listed as in the config
+			slots: {
+        count: integer                      Amount of item
+        maxCount: integer                   Item limit of the slot
+        name: string | nil                  Internal name of item, nil if empty
+				displayName: string                 Display name of the item, should be "" if empty
+        nbt: string | nil                   Nbt hash, nil if empty or no nbt tags
+        tags: { [string]: boolean } | nil   Table of item tags, nil if empty
+			}[]
+		}
+	}
+}
 ]]
 
 -- TODO: Functions to more easily update parts of the data (update chest slot function)
 
 ---Creates an Items object
----@param config ItemsConfig
----@return Items
-local function itemsInstancer(config)
-	---@class Items
-	---@field items {empty: EmptyItem, [string]: Item}
-	---@field chests {[string]: Chest}
-	---@field config ItemsConfig
-	local items = {
-		items = {
-			empty = {
-				count = 0,
-				free = 0,
-				chests = {}
-			}
-		},
-		chests = {},
-		config = config,
+---@param storageConfig StorageConfig
+---@return ItemManager
+local function itemsInstancer(storageConfig)
+	---@type {[string]: Storage}
+	local storages = {}
 
-		---Clears all data and loads it from scratch
-		---@param t Items
-		---@param updateFunction? fun(done, total, step, steps) Function called after each slot is finished
-		refreshAll = function(t, updateFunction)
-			t.chests = {}
-			t.items = {
+	for storage, chests in pairs(storageConfig) do
+		local newChests = {}
+
+		for _, chest in ipairs(chests) do
+			if not tableIncludes(newChests, chest) then
+				local used = false
+
+				for _, storageData in pairs(storages) do
+					if tableIncludes(storageData.chests, chest) then
+						used = true
+						break
+					end
+				end
+
+				if not used then
+					table.insert(newChests, chest)
+				end
+			end
+		end
+
+		storages[storage] = {
+			count = 0,
+			free = 0,
+			reserved = 0,
+			chests = chests,
+			items = {
 				empty = {
 					count = 0,
 					free = 0,
 					chests = {}
 				}
 			}
-			local chests = { peripheral.find("inventory") }
+		}
+	end
 
-			local done, total = 0, 0
-
-			for _, chest in ipairs(chests) do
-				total = total + chest.size()
-			end
-
-			if updateFunction then
-				updateFunction(done, total, 1, 1)
-			end
-
-			for _, chest in ipairs(chests) do
-				local chestName = peripheral.getName(chest)
-
-				local chestData = {
+	if not storages[DEFAULT_STORAGE] then
+		storages[DEFAULT_STORAGE] = {
+			count = 0,
+			free = 0,
+			reserved = 0,
+			chests = {},
+			items = {
+				empty = {
 					count = 0,
-					empty = {
-						emptyCapacity = 0,
-						slots = {}
-					},
-					slots = {}
+					free = 0,
+					chests = {}
 				}
+			}
+		}
+	end
 
-				for slot = 1, chest.size() do
-					---@type ItemDetails
-					local details = chest.getItemDetail(slot)
+	---@class ItemManager
+	---@field storages {[string]: Storage}
+	---@field chests {[string]: Chest}
+	local items = {
+		storages = storages,
+		chests = {},
 
-					if details == nil then
-						details = {
-							count = 0,
-							displayName = "",
-							maxCount = chest.getItemLimit(slot)
-						}
-
-						chestData.empty.emptyCapacity = chestData.empty.emptyCapacity + details.maxCount
-						table.insert(chestData.empty.slots, slot)
-
-						t.items.empty.count = t.items.empty.count + 1
-						t.items.empty.free = t.items.empty.free + details.maxCount
-						if t.items.empty.chests[chestName] == nil then
-							t.items.empty.chests[chestName] = {}
-						end
-						table.insert(t.items.empty.chests[chestName], slot)
-					else
-						chestData.count = chestData.count + details.count
-
-						if t.items[details.name] == nil then
-							t.items[details.name] = {
-								displayName = { details.displayName },
-								tags = details.tags,
-								count = details.count,
-								free = details.maxCount - details.count,
-								chests = {
-									[chestName] = { slot }
-								}
-							}
-						else
-							local hasName = false
-							for name in ipairs(t.items[details.name].displayName) do
-								if name == details.displayName then hasName = true break end
-							end
-							if not hasName then table.insert(t.items[details.name].displayName, details.displayName) end
-							t.items[details.name].count = t.items[details.name].count + details.count
-							t.items[details.name].free = t.items[details.name].free + details.maxCount - details.count
-							if t.items[details.name].chests[chestName] == nil then
-								t.items[details.name].chests[chestName] = { slot }
-							else
-								table.insert(t.items[details.name].chests[chestName], slot)
-							end
-						end
-					end
-
-					chestData.slots[slot] = details
-
-					done = done + 1
-					if updateFunction then
-						updateFunction(done, total, 1, 1)
-					end
+		---Finds the storage that includes the chest, should only be needed when creating new chest data
+		---@param t ItemManager
+		---@param chest string
+		---@return string storage
+		findStorage = function(t, chest)
+			for storage, storageData in pairs(t.storages) do
+				if tableIncludes(storageData.chests, chest) then
+					return storage
 				end
-
-				t.chests[chestName] = chestData
 			end
 
-			if updateFunction then
-				updateFunction(done, total, 1, 1)
-			end
+			table.insert(t.storages[DEFAULT_STORAGE].chests, chest)
+			return DEFAULT_STORAGE
 		end,
 
-		---Removes all data from a chest and loads it from scratch
-		---@param t Items
-		---@param chest string Name of the chest
-		---@param updateFunction? fun(done, total, step, steps) Function called after each slot is finished
-		refreshChest = function(t, chest, updateFunction)
-			-- Remove exising values (Logging is commented because it's too quick)
+		---Removes a slot from an existing chest
+		---@param t ItemManager
+		---@param chest string The chest to remove from
+		---@param slot integer The slot to remove
+		removeSlot = function(t, chest, slot)
+			local oldData = t.chests[chest].slots[slot]
 
-			local step, steps = 0, 1
+			if oldData then
+				if oldData.name then
+					-- chest, storage, storage.item; counts
+					t.chests[chest].count =
+							t.chests[chest].count - oldData.count
+					t.storages[t.chests[chest].storage].count =
+							t.storages[t.chests[chest].storage].count - oldData.count
+					t.storages[t.chests[chest].storage].items[oldData.name].count =
+							t.storages[t.chests[chest].storage].items[oldData.name].count - oldData.count
 
-			-- step, steps = 1, 2
+					-- chest, storage, storage.item; reserved
+					t.chests[chest].reserved =
+							t.chests[chest].reserved - oldData.maxCount + oldData.count
+					t.storages[t.chests[chest].storage].reserved =
+							t.storages[t.chests[chest].storage].reserved - oldData.maxCount + oldData.count
+					t.storages[t.chests[chest].storage].items[oldData.name].free =
+							t.storages[t.chests[chest].storage].items[oldData.name].free - oldData.maxCount + oldData.count
 
-			local done, total = 0, 0
-			if t.chests[chest] then
-				total = #t.chests[chest].slots
-				-- if updateFunction then
-				-- 	updateFunction(done, total, step, steps)
-				-- end
-
-				for slot, info in ipairs(t.chests[chest].slots) do
-					if info.name == nil then
-						t.items.empty.chests[chest] = nil
-						t.items.empty.count = t.items.empty.count - 1
-						t.items.empty.free = t.items.empty.free - info.maxCount
-					else
-						if t.items[info.name] then
-							t.items[info.name].chests[chest] = nil
-							t.items[info.name].count = t.items[info.name].count - info.count
-							t.items[info.name].free = t.items[info.name].free + info.count - info.maxCount
+					for k, v in pairs(t.storages[t.chests[chest].storage].items[oldData.name].chests[chest]) do
+						if v == slot then
+							table.remove(t.storages[t.chests[chest].storage].items[oldData.name].chests[chest], k)
+							break
 						end
 					end
+				else
+					-- storage.item; counts
+					t.storages[t.chests[chest].storage].items.empty.count =
+							t.storages[t.chests[chest].storage].items.empty.count - 1
 
-					done = done + 1
-					-- if updateFunction then
-					-- 	updateFunction(done, total, step, steps)
-					-- end
+					-- chest, storage, storage.item; free
+					t.chests[chest].free =
+							t.chests[chest].free - oldData.maxCount
+					t.storages[t.chests[chest].storage].free =
+							t.storages[t.chests[chest].storage].free - oldData.maxCount
+					t.storages[t.chests[chest].storage].items.empty.free =
+							t.storages[t.chests[chest].storage].items.empty.free - oldData.maxCount
+
+					for k, v in pairs(t.storages[t.chests[chest].storage].items.empty.chests[chest]) do
+						if v == slot then
+							table.remove(t.storages[t.chests[chest].storage].items.empty.chests[chest], k)
+							break
+						end
+					end
 				end
 			end
 
-			-- if updateFunction then
-			-- 	updateFunction(done, total, step, steps)
-			-- end
+			t.chests[chest].slots[slot] = nil
+		end,
+
+		---Adds a slot to an existing chest
+		---@param t ItemManager
+		---@param chest string The chest to add to
+		---@param slot integer The slot to add
+		---@param newData ItemSlot The data to add
+		addSlot = function(t, chest, slot, newData)
+			if newData.name then
+				if not t.storages[t.chests[chest].storage].items[newData.name] then
+					t.storages[t.chests[chest].storage].items[newData.name] = {
+						displayName = newData.displayName,
+						tags = newData.tags,
+						count = 0,
+						free = 0,
+						chests = {}
+					}
+				end
+			end
+
+			if newData.name then
+				-- chest, storage, storage.item; counts
+				t.chests[chest].count =
+						t.chests[chest].count + newData.count
+				t.storages[t.chests[chest].storage].count =
+						t.storages[t.chests[chest].storage].count + newData.count
+				t.storages[t.chests[chest].storage].items[newData.name].count =
+						t.storages[t.chests[chest].storage].items[newData.name].count + newData.count
+
+				-- chest, storage, storage.item; reserved
+				t.chests[chest].reserved =
+						t.chests[chest].reserved + newData.maxCount - newData.count
+				t.storages[t.chests[chest].storage].reserved =
+						t.storages[t.chests[chest].storage].reserved + newData.maxCount - newData.count
+				t.storages[t.chests[chest].storage].items[newData.name].free =
+						t.storages[t.chests[chest].storage].items[newData.name].free + newData.maxCount - newData.count
+
+				if not t.storages[t.chests[chest].storage].items[newData.name].chests[chest] then
+					t.storages[t.chests[chest].storage].items[newData.name].chests[chest] = { slot }
+				else
+					table.insert(t.storages[t.chests[chest].storage].items[newData.name].chests[chest], slot)
+				end
+			else
+				print(textutils.serialise(t.storages[t.chests[chest].storage].items))
+				-- storage.item; counts
+				t.storages[t.chests[chest].storage].items.empty.count =
+						t.storages[t.chests[chest].storage].items.empty.count + 1
+
+				-- chest, storage, storage.item; free
+				t.chests[chest].free =
+						t.chests[chest].free + newData.maxCount
+				t.storages[t.chests[chest].storage].free =
+						t.storages[t.chests[chest].storage].free + newData.maxCount
+				t.storages[t.chests[chest].storage].items.empty.free =
+						t.storages[t.chests[chest].storage].items.empty.free + newData.maxCount
+
+				if not t.storages[t.chests[chest].storage].items.empty.chests[chest] then
+					t.storages[t.chests[chest].storage].items.empty.chests[chest] = { slot }
+				else
+					table.insert(t.storages[t.chests[chest].storage].items.empty.chests[chest], slot)
+				end
+			end
+
+			t.chests[chest].slots[slot] = newData
+		end,
+
+		---Removes all data from a chest
+		---@param t ItemManager
+		---@param chest string The chest to remove
+		removeChest = function(t, chest)
+			if t.chests[chest] then
+				for slot = 1, #t.chests[chest].slots do
+					t:removeSlot(chest, slot)
+				end
+			end
 
 			t.chests[chest] = nil
+		end,
 
-			-- Add new values
-			step = step + 1
-
-			done, total = 0, 0
-			local inven = peripheral.wrap(chest)
-			if inven and peripheral.hasType(inven, "inventory") then
-				total = inven.size()
-
-				if updateFunction then
-					updateFunction(done, total, step, steps)
-				end
-
-				local chestData = {
-					count = 0,
-					empty = {
-						emptyCapacity = 0,
-						slots = {}
-					},
-					slots = {}
-				}
-
-				for slot = 1, inven.size() do
-					---@type ItemDetails
-					local details = inven.getItemDetail(slot)
-
-					if details == nil then
-						details = {
-							count = 0,
-							displayName = "",
-							maxCount = inven.getItemLimit(slot)
-						}
-
-						chestData.empty.emptyCapacity = chestData.empty.emptyCapacity + details.maxCount
-						table.insert(chestData.empty.slots, slot)
-
-						t.items.empty.count = t.items.empty.count + 1
-						t.items.empty.free = t.items.empty.free + details.maxCount
-						if t.items.empty.chests[chest] == nil then
-							t.items.empty.chests[chest] = {}
-						end
-						table.insert(t.items.empty.chests[chest], slot)
-					else
-						chestData.count = chestData.count + details.count
-
-						if t.items[details.name] == nil then
-							t.items[details.name] = {
-								displayName = { details.displayName },
-								tags = details.tags,
-								count = details.count,
-								free = details.maxCount - details.count,
-								chests = {
-									[chest] = { slot }
-								}
-							}
-						else
-							local hasName = false
-							for name in ipairs(t.items[details.name].displayName) do
-								if name == details.displayName then hasName = true break end
-							end
-							if not hasName then table.insert(t.items[details.name].displayName, details.displayName) end
-							t.items[details.name].count = t.items[details.name].count + details.count
-							t.items[details.name].free = t.items[details.name].free + details.maxCount - details.count
-							if t.items[details.name].chests[chest] == nil then
-								t.items[details.name].chests[chest] = { slot }
-							else
-								table.insert(t.items[details.name].chests[chest], slot)
-							end
-						end
-					end
-
-					chestData.slots[slot] = details
-
-					done = done + 1
-					if updateFunction then
-						updateFunction(done, total, step, steps)
-					end
-				end
-
-				t.chests[chest] = chestData
+		---Loads all data from a chest from scratch
+		---@param t ItemManager
+		---@param chest string The chest to remove
+		---@param updateFunction? UpdateFn
+		addChest = function(t, chest, updateFunction, step, steps)
+			if not updateFunction then
+				updateFunction = function(done, total, step, steps) end
+			end
+			if not step or not steps then
+				step, steps = 1, 1
 			end
 
-			if updateFunction then
-				updateFunction(done, total, step, steps)
+			t.chests[chest] = {
+				count = 0,
+				free = 0,
+				reserved = 0,
+				storage = t:findStorage(chest),
+				slots = {}
+			}
+
+			local inven = peripheral.wrap(chest)
+
+			local size = inven.size()
+
+			for slot = 1, size do
+				updateFunction(slot - 1, size, step, steps)
+				local details, maxCount
+
+				parallel.waitForAll(function()
+					details = inven.getItemDetail(slot)
+				end, function()
+					maxCount = inven.getItemLimit(slot)
+				end)
+
+				if not details then
+					details = {
+						count = 0,
+						maxCount = maxCount,
+						displayName = ""
+					}
+				end
+
+				t:addSlot(chest, slot, details)
+			end
+
+			updateFunction(size, size, step, steps)
+		end,
+
+		---Clears all data and loads it from scratch
+		---@param t ItemManager
+		---@param updateFunction? UpdateFn
+		refreshAll = function(t, updateFunction)
+			for storage, _ in pairs(t.storages) do
+				t.storages[storage].count = 0
+				t.storages[storage].free = 0
+				t.storages[storage].reserved = 0
+				t.storages[storage].items = {
+					empty = {
+						count = 0,
+						free = 0,
+						chests = {}
+					}
+				}
+			end
+
+			t.chests = {}
+
+			local invens = { peripheral.find("inventory") }
+
+			for k, inven in pairs(invens) do
+				t:addChest(peripheral.getName(inven), updateFunction, k, #invens)
 			end
 		end,
 
 		---Call pullItems on baseName, and update the database accordingly
-		---@param t Items
-		---@param updateFunction? fun(done, total, step, steps) Function called after each slot is finished
+		---@param t ItemManager
+		---@param updateFunction? UpdateFn
 		---@param baseName string Name of the peripheral to call this function on
 		---@param fromName string Name of the chest to move items from
 		---@param fromSlot integer The slot index to move items from
 		---@param limit? integer The maximum amount of items to move
 		---@param toSlot? integer The slot index to move items to
-		---@return integer? moved The number of items moved
+		---@return integer? moved The number of items moved, nil if unknown
 		pullItems = function(t, updateFunction, baseName, fromName, fromSlot, limit, toSlot)
-			if not peripheral.hasType(baseName, "inventory") then
-				return 0
-			end
-			if not peripheral.hasType(fromName, "inventory") then
-				return 0
-			end
-
-			if t.chests[fromName] and t.chests[fromName].slots[fromSlot].name == nil then
-				return 0
-			end
-
-			local baseChest = peripheral.wrap(baseName)
-			local fromChest = peripheral.wrap(fromName)
-
-			baseChest.pullItems(fromName, fromSlot, limit, toSlot)
-
-			if (not t.chests[baseName]) or (not t.chests[fromName]) then
-				local prevDone = 0
-				local trueStep = 1
-				local combinedUpdate = function(done, total, step, steps)
-					if updateFunction then
-						if prevDone > done then
-							trueStep = trueStep + 1
-						end
-						prevDone = done
-						updateFunction(done, total, trueStep, steps * 2)
-					end
-				end
-				t:refreshChest(baseName, combinedUpdate)
-				t:refreshChest(fromName, combinedUpdate)
-				return
-			end
-
-			local oldDetails = t.chests[fromName].slots[fromSlot]
-			---@type ItemDetails
-			local newDetails = fromChest.getItemDetail(fromSlot)
-
-			if newDetails == nil then
-				newDetails = {
-					count = 0,
-					displayName = "",
-					maxCount = fromChest.getItemLimit(fromSlot)
-				}
-
-				table.insert(t.chests[fromName].empty.slots, fromSlot)
-				t.chests[fromName].empty.emptyCapacity = t.chests[fromName].empty.emptyCapacity + newDetails.maxCount
-
-				t.items.empty.count = t.items.empty.count + 1
-				if t.items.empty.chests[fromName] == nil then
-					t.items.empty.chests[fromName] = { fromSlot }
-				else
-					table.insert(t.items.empty.chests[fromName], fromSlot)
-				end
-				t.items.empty.free = t.items.empty.free + newDetails.maxCount
-
-				---@type string
-				local itemName = oldDetails.name
-				if t.items[itemName].chests[fromName] then
-					for k, v in pairs(t.items[itemName].chests[fromName]) do
-						if v == fromSlot then
-							table.remove(t.items[itemName].chests[fromName], k)
-							break
-						end
-					end
-				end
-				t.items[itemName].free = t.items[itemName].free + newDetails.maxCount
-			end
-
-			t.chests[fromName].slots[fromSlot] = newDetails
-
-			local difference = oldDetails.count - newDetails.count
-
-			t.chests[baseName].count = t.chests[baseName].count + difference
-			t.chests[fromName].count = t.chests[fromName].count - difference
-
-			if difference == 0 then
-				return 0
-			end
-
-			if oldDetails.nbt then
-				t:refreshChest(baseName, updateFunction)
-				return difference
-			end
-
-			if toSlot ~= nil then
-				local count = t.chests[baseName].slots[toSlot].count + difference
-				t.chests[baseName].slots[toSlot] = oldDetails
-				t.chests[baseName].slots[toSlot].count = count
-				return difference
-			end
-
-			local remaining = difference
-
-			for slot = 1, #t.chests[baseName].slots do
-				if remaining < 1 then
-					break
-				end
-
-				local slotData = t.chests[baseName].slots[slot]
-
-				if slotData.name == oldDetails.name and not slotData.nbt then
-					local space = slotData.maxCount - slotData.count
-					local change = math.min(space, remaining)
-
-					remaining = remaining - change
-
-					t.chests[baseName].slots[slot].count = slotData.count + change
-
-					-- items[item].chests, items[item].free
-				elseif slotData.name == nil then
-					---@type ItemDetails
-					local newSlot = baseChest.getItemDetail(slot)
-					if newSlot == nil then
-						newSlot = {
-							count = 0,
-							displayName = "",
-							maxCount = baseChest.getItemLimit(slot)
-						}
-					end
-
-					if newSlot.name ~= nil then
-						t.chests[baseName].empty.emptyCapacity = t.chests[baseName].empty.emptyCapacity - slotData.maxCount
-						for k, v in pairs(t.chests[baseName].empty.slots) do
-							if v == slot then
-								table.remove(t.chests[baseName].empty.slots, k)
-								break
-							end
-						end
-
-						t.items.empty.count = t.items.empty.count - 1
-						if t.items.empty.chests[baseName] then
-							for k, v in pairs(t.items.empty.chests[baseName]) do
-								if v == slot then
-									table.remove(t.items.empty.chests[baseName], k)
-									break
-								end
-							end
-						end
-						t.items.empty.free = t.items.empty.free - slotData.maxCount
-
-						---@type string
-						local itemName = newSlot.name
-
-						if not t.items[itemName].chests[baseName] then
-							t.items[itemName].chests[baseName] = { slot }
-						else
-							table.insert(t.items[itemName].chests[baseName], slot)
-						end
-						t.items[itemName].free = t.items[itemName].free + newSlot.maxCount - newSlot.count
-					end
-
-					remaining = remaining - newSlot.count
-
-					t.chests[baseName].slots[slot] = newSlot
-				end
-			end
-
-			return difference
+			-- TODO
 		end
 	}
 
