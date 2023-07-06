@@ -170,6 +170,30 @@ local function itemsInstancer(storageConfig)
 		storages = storages,
 		chests = {},
 
+		---Generates ItemSlot for a chest slot, creating the correct empty data if the details are nil
+		---@param chest string The chest of the slot
+		---@param slot integer The slot to get the details of
+		---@return ItemSlot detials The details of the slot
+		getDetails = function(chest, slot)
+			local details, maxCount
+
+			parallel.waitForAll(function()
+				details = peripheral.call(chest, "getItemDetail", slot)
+			end, function()
+				maxCount = peripheral.call(chest, "getItemLimit", slot)
+			end)
+
+			if not details then
+				details = {
+					count = 0,
+					maxCount = maxCount,
+					displayName = ""
+				}
+			end
+
+			return details
+		end,
+
 		---Finds the storage that includes the chest, should only be needed when creating new chest data
 		---@param t ItemManager
 		---@param chest string
@@ -338,27 +362,12 @@ local function itemsInstancer(storageConfig)
 				slots = {}
 			}
 
-			local inven = peripheral.wrap(chest)
-
-			local size = inven.size()
+			local size = peripheral.call(chest, "size")
 
 			for slot = 1, size do
 				updateFunction(slot - 1, size, step, steps)
-				local details, maxCount
 
-				parallel.waitForAll(function()
-					details = inven.getItemDetail(slot)
-				end, function()
-					maxCount = inven.getItemLimit(slot)
-				end)
-
-				if not details then
-					details = {
-						count = 0,
-						maxCount = maxCount,
-						displayName = ""
-					}
-				end
+				local details = t.getDetails(chest, slot)
 
 				t:addSlot(chest, slot, details)
 			end
@@ -394,15 +403,59 @@ local function itemsInstancer(storageConfig)
 
 		---Call pullItems on baseName, and update the database accordingly
 		---@param t ItemManager
-		---@param updateFunction? UpdateFn
-		---@param baseName string Name of the peripheral to call this function on
 		---@param fromName string Name of the chest to move items from
 		---@param fromSlot integer The slot index to move items from
+		---@param toName string Name of the peripheral to call this function on
+		---@param toSlot integer The slot index to move items to
 		---@param limit? integer The maximum amount of items to move
-		---@param toSlot? integer The slot index to move items to
-		---@return integer? moved The number of items moved, nil if unknown
-		pullItems = function(t, updateFunction, baseName, fromName, fromSlot, limit, toSlot)
-			-- TODO
+		---@return integer moved The number of items moved
+		moveItems = function(t, fromName, fromSlot, toName, toSlot, limit)
+			local oldData = t.chests[fromName].slots[fromSlot]
+			if oldData.name == nil then return 0 end
+			local transfered = peripheral.call(toName, "pullItems", fromName, fromSlot, limit, toSlot)
+
+			if transfered == 0 then return 0 end
+
+			local newCount = oldData.count - transfered
+			local newData
+			if newCount == 0 then
+				newData = {
+					count = 0,
+					maxCount = peripheral.call(fromName, "getItemLimit", fromSlot),
+					displayName = ""
+				}
+			else
+				newData = {}
+				for k, v in pairs(oldData) do
+					newData[k] = v
+				end
+				newData.count = newCount
+			end
+
+			t:removeSlot(fromName, fromSlot)
+			t:addSlot(fromName, fromSlot, newData)
+
+			local oldToData = t.chests[toName].slots[toSlot]
+			local newToData
+			if oldToData.name == nil then
+				newToData = {}
+				for k, v in pairs(oldData) do
+					newToData[k] = v
+				end
+				newToData.count = transfered
+				newToData.maxCount = peripheral.call(toName, "getItemLimit", toSlot)
+			else
+				newToData = {}
+				for k, v in pairs(oldToData) do
+					newToData[k] = v
+				end
+				newToData.count = oldToData.count + transfered
+			end
+
+			t:removeSlot(toName, toSlot)
+			t:addSlot(toName, toSlot, newToData)
+
+			return transfered
 		end
 	}
 

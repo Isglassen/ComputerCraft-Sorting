@@ -339,19 +339,43 @@ local function keyHandling(key, holding)
 end
 
 local function main()
-  info.state = "Loading..."
-  info.step = "Reading Items"
-
-  manager:refreshAll(drawUI)
-
-  info.state = info.source .. " -> " .. info.destination
-  info.step = "(count/free)"
-  info.list.index = 1
-
-  drawUI()
-
   local eventQueue = {}
-  local queueLen = 0
+
+  -- Loading
+  local function catchLoading()
+    while true do
+      local eventData = { os.pullEventRaw() }
+      if eventData[1] == "peripheral" or eventData[1] == "peripheral_detach" then
+        table.insert(eventQueue, eventData)
+      end
+    end
+  end
+
+  local function loading()
+    info.state = "Loading..."
+    info.step = "Reading Items"
+
+    manager:refreshAll(drawUI)
+
+    info.state = info.source .. " -> " .. info.destination
+    info.step = "(count/free)"
+    info.list.index = 1
+
+    drawUI()
+  end
+
+  parallel.waitForAny(catchLoading, loading)
+  local queueLen = #eventQueue
+
+  -- Main Loop
+  local function catchEvents()
+    if queueLen == 0 then
+      os.pullEventRaw()
+    end
+    while true do
+      table.insert(eventQueue, { os.pullEventRaw() })
+    end
+  end
 
   local function execute()
     local eventData
@@ -411,15 +435,6 @@ local function main()
         info.list.index = info.list.index + eventData[2]
         drawUI()
       end
-    end
-  end
-
-  local function catchEvents()
-    if queueLen == 0 then
-      os.pullEventRaw()
-    end
-    while true do
-      table.insert(eventQueue, { os.pullEventRaw() })
     end
   end
 
