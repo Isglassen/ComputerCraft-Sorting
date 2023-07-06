@@ -306,7 +306,6 @@ local function itemsInstancer(storageConfig)
 					table.insert(t.storages[t.chests[chest].storage].items[newData.name].chests[chest], slot)
 				end
 			else
-				print(textutils.serialise(t.storages[t.chests[chest].storage].items))
 				-- storage.item; counts
 				t.storages[t.chests[chest].storage].items.empty.count =
 						t.storages[t.chests[chest].storage].items.empty.count + 1
@@ -398,6 +397,7 @@ local function itemsInstancer(storageConfig)
 
 			for k, inven in pairs(invens) do
 				t:addChest(peripheral.getName(inven), updateFunction, k, #invens)
+				sleep(0.05)
 			end
 		end,
 
