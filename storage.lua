@@ -42,8 +42,24 @@ for _, path in pairs(fs.find(fs.combine(programPath, "./storages/*.storage"))) d
   end
 end
 
----@type {monitors: string[]}
+
+---@class UIConfig
+---@field monitors string[] List of monitors to display items on
+---@field use_displayName boolean Use display names instead of internal names (some items may have the same display name)
+
+---@type UIConfig
 local config = fileFns.readData(fs.combine(programPath, "./storage.cfg"))
+
+if not config.monitors then
+  config.monitors = {}
+end
+
+if config.use_displayName == nil then
+  config.use_displayName = false
+end
+
+fileFns.writeData(fs.combine(programPath, "./storage.cfg"), config)
+
 
 ---@type ItemManager
 local manager = require("StorageData.items")(storages)
@@ -162,6 +178,7 @@ local function drawList(list, index, offset, countList, freeList)
 
       local itemBlitT, itemBlitB = "", ""
       local colonIndex = item:find(":", nil, true)
+      if not colonIndex then colonIndex = 0 end
 
       for i = 1, colonIndex do
         if readIndex == index then
@@ -207,7 +224,7 @@ local function drawList(list, index, offset, countList, freeList)
           leftBlitB = leftBlitB .. "f"
         end
         if free then
-          leftString = leftString .. "/" .. free
+          leftString = leftString .. free
           for _ = 1, free:len() do
             if readIndex == index then
               leftBlitT = leftBlitT .. "9"
@@ -287,7 +304,7 @@ local function drawUI(done, total, step, steps)
     if done and total and step and steps then
       termFns.DetailedProgress(term, done, total, step, steps, colors.lime, colors.black)
     else
-
+      -- TODO: Draw actions
     end
 
     -- Line 2
@@ -303,10 +320,55 @@ local function drawUI(done, total, step, steps)
     term.setBackgroundColor(colors.gray)
     term.clearLine()
 
+    if info.mode == modes.move then
+      term.write(info.source)
+      termFns.LeftWrite(term, termFns.W(term), termFns.H(term) - 1, info.destination)
+    end
+
 
     -- Line -0
     term.setCursorPos(1, termFns.H(term))
     term.clearLine()
+
+    if info.mode == modes.move then
+      local txt, fg, bg =
+          manager.storages[info.source].count .. "/" ..
+          manager.storages[info.source].free + manager.storages[info.source].count, "", ""
+      for _ = 1, #txt do
+        fg = fg .. "0"
+        bg = bg .. "7"
+      end
+      term.blit(txt, fg, bg)
+      if manager.storages[info.source].reserved > 0 then
+        txt, fg, bg = "(+" .. manager.storages[info.source].reserved .. ")", "", ""
+        for _ = 1, #txt do
+          fg = fg .. "8"
+          bg = bg .. "7"
+        end
+        term.blit(txt, fg, bg)
+      end
+
+      txt = ""
+      if manager.storages[info.destination].reserved > 0 then
+        txt, fg, bg = "(+" .. manager.storages[info.destination].reserved .. ")", "", ""
+        for _ = 1, #txt do
+          fg = fg .. "8"
+          bg = bg .. "7"
+        end
+        termFns.LeftBlit(term, termFns.W(term), termFns.H(term), txt, fg, bg)
+      end
+
+      local xOffset = #txt
+
+      txt, fg, bg =
+          manager.storages[info.destination].count .. "/" ..
+          manager.storages[info.destination].free + manager.storages[info.destination].count, "", ""
+      for _ = 1, #txt do
+        fg = fg .. "0"
+        bg = bg .. "7"
+      end
+      termFns.LeftBlit(term, termFns.W(term)-xOffset, termFns.H(term), txt, fg, bg)
+    end
   end
 
   -- SelectArea
@@ -314,9 +376,11 @@ local function drawUI(done, total, step, steps)
     local list, counts, free = {}, {}, {}
     for k, v in pairs(manager.storages[info.source].items) do
       if k ~= "empty" then
-        table.insert(list, k)
+        ---@type Item
+        v = v
+        table.insert(list, v.displayName)
         table.insert(counts, "" .. v.count)
-        table.insert(free, "" .. v.free)
+        table.insert(free, "/" .. v.free)
       end
     end
 

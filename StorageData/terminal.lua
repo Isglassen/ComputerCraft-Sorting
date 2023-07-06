@@ -80,9 +80,6 @@ local function LeftBlit(terminal, x, y, s, fg, bg)
 	expect(4, s, "string")
 	expect(5, fg, "string")
 	expect(6, bg, "string")
-	if not Color(terminal) then
-		return LeftWrite(terminal, x, y, s)
-	end
 	terminal.setCursorPos(x + 1 - s:len(), y)
 	terminal.blit(s, fg, bg)
 end
