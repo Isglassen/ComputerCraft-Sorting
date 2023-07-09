@@ -1,7 +1,24 @@
+---Splits a string by seperator, https://stackoverflow.com/a/7615129
+---@param inputstr string The string to split
+---@param sep string? The gmatch seperator to split by, or %s by default
+---@return string[] strings The list of split strings
+local function splitStr(inputstr, sep)
+  if sep == nil then
+    sep = "%s"
+  end
+  local t = {}
+  for str in string.gmatch(inputstr, "([^" .. sep .. "]+)") do
+    table.insert(t, str)
+  end
+  return t
+end
+
 local fileFns = require("StorageData.files")
 local termFns = require("StorageData.terminal")
 
 local programPath = fs.combine(shell.getRunningProgram(), "../")
+
+shell.openTab(fs.combine(programPath, "./storage_help.lua"))
 
 ---Returns information for a storage from a file
 ---@param file CCFileRead
@@ -117,7 +134,15 @@ local info = {
   source = "Main Storage",
   destination = "Output",
   mode = modes.move,
+  search = {
+    value = "",
+    cursor = 1,
+    active = false,
+    offset = 0,
+    first = false,
+  },
   list = {
+    values = {},
     index = -1,
     offset = 0,
   }
@@ -130,7 +155,7 @@ for _, v in pairs(config.monitors) do
 end
 
 local PARAMS = {
-  ITEMS_START = function(PARAMS) return 3 end,
+  ITEMS_START = function(PARAMS) return 4 end,
   ITEMS_END = function(PARAMS, terminal) return termFns.H(terminal) - 2 end,
   ITEMS_LENGTH = function(PARAMS, terminal) return PARAMS:ITEMS_END(terminal) - PARAMS:ITEMS_START() + 1 end,
 }
@@ -295,8 +320,8 @@ local function drawUI(done, total, step, steps)
     term.setBackgroundColor(colors.black)
     term.clear()
 
-    -- Line 1
-    term.setCursorPos(1, 1)
+    -- Line 2
+    term.setCursorPos(1, 2)
     term.setTextColor(colors.white)
     term.setBackgroundColor(colors.gray)
     term.clearLine()
@@ -307,12 +332,12 @@ local function drawUI(done, total, step, steps)
       -- TODO: Draw actions
     end
 
-    -- Line 2
-    term.setCursorPos(1, 2)
+    -- Line 3
+    term.setCursorPos(1, 3)
     term.clearLine()
 
     term.write(info.state)
-    termFns.LeftWrite(term, termFns.W(term), 2, info.step)
+    termFns.LeftWrite(term, termFns.W(term), 3, info.step)
 
     -- Line -1
     term.setCursorPos(1, termFns.H(term) - 1)
@@ -367,24 +392,114 @@ local function drawUI(done, total, step, steps)
         fg = fg .. "0"
         bg = bg .. "7"
       end
-      termFns.LeftBlit(term, termFns.W(term)-xOffset, termFns.H(term), txt, fg, bg)
+      termFns.LeftBlit(term, termFns.W(term) - xOffset, termFns.H(term), txt, fg, bg)
     end
   end
 
   -- SelectArea
   if info.mode == modes.move then
     local list, counts, free = {}, {}, {}
+    info.list.values = {}
     for k, v in pairs(manager.storages[info.source].items) do
-      if k ~= "empty" then
+      local valid = true
+
+      if k == "empty" then
+        valid = false
+      end
+
+      ---@type Item
+      v = v
+      for _, searchTerm in ipairs(splitStr(info.search.value)) do
+        if not valid then break end
+        if searchTerm:sub(1, 1) == "#" then
+          local hasTag = false
+          local searchTag = searchTerm:sub(2):lower()
+          for tag, bool in pairs(v.tags) do
+            if bool and tag:lower():find(searchTag, 1, true) then
+              hasTag = true
+              break
+            end
+          end
+
+          valid = valid and hasTag
+        else
+          if config.use_displayName then
+            if not v.displayName:lower():find(searchTerm:lower(), 1, true) then
+              valid = false
+            end
+          else
+            if not v.name:lower():find(searchTerm:lower(), 1, true) then
+              valid = false
+            end
+          end
+        end
+      end
+
+      if valid then
         ---@type Item
         v = v
         table.insert(list, v.displayName)
         table.insert(counts, "" .. v.count)
         table.insert(free, "/" .. v.free)
+
+        table.insert(info.list.values, k)
       end
     end
 
     info.list.index, info.list.offset = drawList(list, info.list.index, info.list.offset, counts, free)
+  end
+
+  if info.search.cursor < 0 then
+    info.search.cursor = 0
+  end
+  if info.search.cursor > info.search.value:len() then
+    info.search.cursor = info.search.value:len()
+  end
+  if info.search.value:len() < termFns.W(term) - ("Search: "):len() - 3 then
+    info.search.offset = 0
+  else
+    if info.search.cursor - info.search.offset < 3 then
+      info.search.offset = info.search.cursor - 3
+    end
+    if info.search.cursor - info.search.offset > termFns.W(term) - ("Search: "):len() - 3 then
+      info.search.offset = info.search.cursor - (termFns.W(term) - ("Search: "):len() - 3)
+    end
+
+    info.search.offset = math.min(info.search.value:len() - (termFns.W(term) - ("Search: "):len() - 3),
+      math.max(0, info.search.offset))
+  end
+
+  -- Line 1
+  for _, term in pairs(info.terms) do
+    term.setBackgroundColor(colors.white)
+    term.setCursorPos(1, 1)
+    term.clearLine()
+
+    term.setTextColor(colors.white)
+    term.setBackgroundColor(colors.black)
+    term.write("Search:")
+
+    term.setBackgroundColor(colors.white)
+
+    if info.search.value == "" and not info.search.active then
+      term.setTextColor(colors.lightGray)
+      term.write(" Press F to search")
+    else
+      term.setTextColor(colors.black)
+      if info.search.offset == 0 then
+        term.write(" " .. info.search.value)
+      else
+        term.write(info.search.value:sub(info.search.offset))
+      end
+    end
+
+    if info.search.active then
+      term.setCursorPos(("Search: "):len() + 1 + info.search.cursor - info.search.offset, 1)
+      term.setTextColor(colors.black)
+      term.setCursorBlink(true)
+    else
+      term.setCursorBlink(false)
+    end
   end
 end
 
@@ -393,12 +508,36 @@ local function clickHandling(button, x, y)
 end
 
 local function keyHandling(key, holding)
-  if key == keys.s or key == keys.down then
-    info.list.index = info.list.index + 1
-    drawUI()
-  elseif key == keys.w or key == keys.up then
-    info.list.index = info.list.index - 1
-    drawUI()
+  if info.search.active then
+    -- TODO: Search inputs
+    if key == keys.enter then
+      info.search.active = false
+      drawUI()
+    elseif key == keys.backspace then
+      info.search.value = info.search.value:sub(1, info.search.cursor - 1) .. info.search.value:sub(info.search.cursor +
+        1)
+      info.search.cursor = math.max(0, info.search.cursor - 1)
+      drawUI()
+    elseif key == keys.left then
+      info.search.cursor = math.max(0, info.search.cursor - 1)
+      drawUI()
+    elseif key == keys.right then
+      info.search.cursor = math.min(info.search.value:len(), info.search.cursor + 1)
+      drawUI()
+    end
+  else
+    if key == keys.s or key == keys.down then
+      info.list.index = info.list.index + 1
+      drawUI()
+    elseif key == keys.w or key == keys.up then
+      info.list.index = info.list.index - 1
+      drawUI()
+    elseif key == keys.f then
+      info.search.first = true
+      info.search.cursor = info.search.value:len()
+      info.search.active = true
+      drawUI()
+    end
   end
 end
 
@@ -492,6 +631,20 @@ local function main()
       drawUI()
     elseif eventData[1] == "key" then
       keyHandling(eventData[2], eventData[3])
+    elseif eventData[1] == "char" and info.search.active then
+      if info.search.first then
+        info.search.first = false
+      else
+        info.search.value = info.search.value:sub(1, info.search.cursor) ..
+            eventData[2] .. info.search.value:sub(info.search.cursor + 1)
+        info.search.cursor = info.search.cursor + eventData[2]:len()
+        drawUI()
+      end
+    elseif eventData[1] == "paste" and info.search.active then
+      info.search.value = info.search.value:sub(1, info.search.cursor) ..
+          eventData[2] .. info.search.value:sub(info.search.cursor + 1)
+      info.search.cursor = info.search.cursor + eventData[2]:len()
+      drawUI()
     elseif eventData[1] == "mouse_click" then
       clickHandling(eventData[1], eventData[3], eventData[4])
     elseif eventData[1] == "mouse_scroll" then

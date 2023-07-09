@@ -115,7 +115,7 @@ end
 ---@param fillCol Color The color of the filled area
 ---@param emptyCol Color The color of the empty area
 local function DetailedProgress(terminal, done, total, step, steps, fillCol, emptyCol)
-	local y = terminal.getCursorPos()
+	local _, y = terminal.getCursorPos()
 	terminal.setCursorPos(1, y)
 	local endString1 = " "..done.."/"..total
 	local endString2

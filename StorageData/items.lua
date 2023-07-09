@@ -456,6 +456,113 @@ local function itemsInstancer(storageConfig)
 			t:addSlot(toName, toSlot, newToData)
 
 			return transfered
+		end,
+
+		---Tries to merge non-full stacks into as few as possible
+		---@param t ItemManager
+		---@param storage string The storage to optimize items in
+		optimizeStorage = function(t, storage)
+			for _, chest in t.storages[storage].chests do
+				if t.chests[chest] then
+					for slot = 1, #t.chests[chest].slots do
+						local data = t.chests[chest].slots[slot]
+
+						if data.count < data.maxCount and data.name then
+							for toChest, _ in pairs(t.storages[storage].items[data.name].chests) do
+								if t.chests[chest].slots[slot].count == 0 then
+									break
+								end
+
+								local toSlots = {}
+
+								for _, toSlot in ipairs(t.storages[storage].items[data.name].chests[toChest]) do
+									table.insert(toSlots, toSlot)
+								end
+
+								for _, toSlot in ipairs(toSlots) do
+									if t.chests[chest].slots[slot].count == 0 then
+										break
+									end
+
+									if not (toChest == chest and toSlot == slot) and t.chests[toChest].slots[toSlot].count < t.chests[toChest].slots[toSlot].maxCount then
+										t:moveItems(chest, slot, toChest, toSlot)
+									end
+								end
+							end
+						end
+					end
+				end
+			end
+		end,
+
+		---Moves items of a type between storages
+		---@param t ItemManager
+		---@param source string The storage to move from
+		---@param destination string The storage to move to
+		---@param item string The type of item to move
+		---@param limit integer? The max amount of the item to move
+		changeStorage = function(t, source, destination, item, limit)
+			local moved = 0
+
+			for fromChest, slots in pairs(t.storages[source].items[item].chests) do
+				if moved >= limit then
+					break
+				end
+
+				local fromSlots = {}
+
+				for _, slot in ipairs(slots) do
+					table.insert(fromSlots, slot)
+				end
+
+				for _, fromSlot in ipairs(fromSlots) do
+					if moved >= limit then
+						break
+					end
+
+					for toChest, slots in pairs(t.storages[destination].items[item].chests) do
+						if t.chests[fromChest].slots[fromSlot].count < 1 or moved >= limit then
+							break
+						end
+
+						local toSlots = {}
+
+						for _, slot in ipairs(slots) do
+							if t.chests[toChest].slots[slot].count > 0 then
+								table.insert(toSlots, slot)
+							end
+						end
+
+						for _, toSlot in ipairs(toSlots) do
+							if t.chests[fromChest].slots[fromSlot].count < 1 or moved >= limit then
+								break
+							end
+
+							moved = moved + t:moveItems(fromChest, fromSlot, toChest, toSlot, limit - moved)
+						end
+					end
+
+					for toChest, slots in pairs(t.storages[destination].items.empty.chests) do
+						if t.chests[fromChest].slots[fromSlot].count < 1 or moved >= limit then
+							break
+						end
+
+						local toSlots = {}
+
+						for _, slot in ipairs(slots) do
+							table.insert(toSlots, slot)
+						end
+
+						for _, toSlot in ipairs(toSlots) do
+							if t.chests[fromChest].slots[fromSlot].count < 1 or moved >= limit then
+								break
+							end
+
+							moved = moved + t:moveItems(fromChest, fromSlot, toChest, toSlot, limit - moved)
+						end
+					end
+				end
+			end
 		end
 	}
 
