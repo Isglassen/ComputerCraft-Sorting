@@ -1,1 +1,0 @@
--- Tests loading of uncommon .storage files, including duplicate chests and duplicate storages
