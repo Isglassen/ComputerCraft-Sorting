@@ -14,6 +14,7 @@ print("SEARCH")
 print("Enter: End search")
 print("LCtrl+Backspace: Clear search")
 print("Left/Right: Move cursor")
+print("Ctrl+V: Paste from clipboard")
 
 while true do
   os.pullEvent()
