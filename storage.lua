@@ -128,6 +128,7 @@ local modes = {
 }
 
 local info = {
+  ctrl = false,
   terms = { term },
   state = "",
   step = "",
@@ -143,7 +144,7 @@ local info = {
   },
   list = {
     values = {},
-    index = -1,
+    index = 1,
     offset = 0,
   }
 }
@@ -503,20 +504,32 @@ local function drawUI(done, total, step, steps)
   end
 end
 
+
+-- TODO: More information about current state
+
 local function clickHandling(button, x, y)
   -- TODO
 end
 
 local function keyHandling(key, holding)
+  if key == keys.leftCtrl then
+    info.ctrl = true
+  end
   if info.search.active then
     -- TODO: Search inputs
     if key == keys.enter then
       info.search.active = false
       drawUI()
     elseif key == keys.backspace then
-      info.search.value = info.search.value:sub(1, info.search.cursor - 1) .. info.search.value:sub(info.search.cursor +
-        1)
-      info.search.cursor = math.max(0, info.search.cursor - 1)
+      if info.keys.leftCtrl then
+        -- TODO: Actualy erase only to last whitespace
+        info.search.value = ""
+        info.search.cursor = 0
+      else
+        info.search.value = info.search.value:sub(1, info.search.cursor - 1) ..
+            info.search.value:sub(info.search.cursor + 1)
+        info.search.cursor = math.max(0, info.search.cursor - 1)
+      end
       drawUI()
     elseif key == keys.left then
       info.search.cursor = math.max(0, info.search.cursor - 1)
@@ -526,7 +539,23 @@ local function keyHandling(key, holding)
       drawUI()
     end
   else
-    if key == keys.s or key == keys.down then
+    if key == keys.enter and info.mode == modes.move then
+      manager:changeStorage(info.source, info.destination, info.list.values[info.list.index], drawUI)
+      drawUI()
+    end
+    if key == keys.backspace and info.mode == modes.move then
+      for k, chest in ipairs(manager.storages[info.destination].chests) do
+        manager:removeChest(chest)
+        manager:addChest(chest, drawUI, k, #manager.storages[info.destination].chests)
+      end
+
+      for item, value in pairs(manager.storages[info.destination].items) do
+        if item ~= "empty" then
+          manager:changeStorage(info.destination, info.source, item, drawUI)
+        end
+      end
+      drawUI()
+    elseif key == keys.s or key == keys.down then
       info.list.index = info.list.index + 1
       drawUI()
     elseif key == keys.w or key == keys.up then
@@ -562,7 +591,6 @@ local function main()
 
     info.state = info.source .. " -> " .. info.destination
     info.step = "(count/free)"
-    info.list.index = 1
 
     drawUI()
   end
@@ -631,6 +659,10 @@ local function main()
       drawUI()
     elseif eventData[1] == "key" then
       keyHandling(eventData[2], eventData[3])
+    elseif eventData[1] == "key_up" then
+      if eventData[2] == keys.ctrl then
+        info.ctrl = false
+      end
     elseif eventData[1] == "char" and info.search.active then
       if info.search.first then
         info.search.first = false

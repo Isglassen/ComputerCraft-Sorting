@@ -346,6 +346,10 @@ local function itemsInstancer(storageConfig)
 		---@param chest string The chest to remove
 		---@param updateFunction? UpdateFn
 		addChest = function(t, chest, updateFunction, step, steps)
+			if not peripheral.hasType(chest, "inventory") then
+				return
+			end
+
 			if not updateFunction then
 				updateFunction = function(done, total, step, steps) end
 			end
@@ -461,8 +465,13 @@ local function itemsInstancer(storageConfig)
 		---Tries to merge non-full stacks into as few as possible
 		---@param t ItemManager
 		---@param storage string The storage to optimize items in
-		optimizeStorage = function(t, storage)
-			for _, chest in t.storages[storage].chests do
+		---@param updateFunction? UpdateFn
+		optimizeStorage = function(t, storage, updateFunction)
+			if not updateFunction then updateFunction = function(done, total, step, steps) end end
+
+			local steps = #t.storages[storage].chests
+			for step, chest in t.storages[storage].chests do
+				updateFunction(0, #t.chests[chest].slots, step, steps)
 				if t.chests[chest] then
 					for slot = 1, #t.chests[chest].slots do
 						local data = t.chests[chest].slots[slot]
@@ -490,6 +499,8 @@ local function itemsInstancer(storageConfig)
 								end
 							end
 						end
+
+						updateFunction(slot, #t.chests[chest].slots, step, steps)
 					end
 				end
 			end
@@ -500,12 +511,26 @@ local function itemsInstancer(storageConfig)
 		---@param source string The storage to move from
 		---@param destination string The storage to move to
 		---@param item string The type of item to move
+		---@param updateFunction? UpdateFn
 		---@param limit integer? The max amount of the item to move
-		changeStorage = function(t, source, destination, item, limit)
+		changeStorage = function(t, source, destination, item, updateFunction, limit)
+			if not updateFunction then updateFunction = function(done, total, step, steps) end end
+
 			local moved = 0
 
+			local step, steps = 0, 0
+
+			for _, _ in pairs(t.storages[source].items[item].chests) do
+				steps = steps + 1
+			end
+
 			for fromChest, slots in pairs(t.storages[source].items[item].chests) do
-				if moved >= limit then
+				step = step + 1
+
+				local total = #slots
+
+				updateFunction(0, total, step, steps)
+				if limit and moved >= limit then
 					break
 				end
 
@@ -515,35 +540,40 @@ local function itemsInstancer(storageConfig)
 					table.insert(fromSlots, slot)
 				end
 
-				for _, fromSlot in ipairs(fromSlots) do
-					if moved >= limit then
+				for done, fromSlot in ipairs(fromSlots) do
+					if limit and moved >= limit then
 						break
 					end
 
-					for toChest, slots in pairs(t.storages[destination].items[item].chests) do
-						if t.chests[fromChest].slots[fromSlot].count < 1 or moved >= limit then
-							break
-						end
-
-						local toSlots = {}
-
-						for _, slot in ipairs(slots) do
-							if t.chests[toChest].slots[slot].count > 0 then
-								table.insert(toSlots, slot)
-							end
-						end
-
-						for _, toSlot in ipairs(toSlots) do
-							if t.chests[fromChest].slots[fromSlot].count < 1 or moved >= limit then
+					if t.storages[destination].items[item] then
+						for toChest, slots in pairs(t.storages[destination].items[item].chests) do
+							if t.chests[fromChest].slots[fromSlot].count < 1 or (limit and moved >= limit) then
 								break
 							end
 
-							moved = moved + t:moveItems(fromChest, fromSlot, toChest, toSlot, limit - moved)
+							local toSlots = {}
+
+							for _, slot in ipairs(slots) do
+								if t.chests[toChest].slots[slot].count < t.chests[toChest].slots[slot].maxCount then
+									table.insert(toSlots, slot)
+								end
+							end
+
+							for _, toSlot in ipairs(toSlots) do
+								if t.chests[fromChest].slots[fromSlot].count < 1 or (limit and moved >= limit) then
+									break
+								end
+
+								local left
+								if limit then left = limit - moved end
+
+								moved = moved + t:moveItems(fromChest, fromSlot, toChest, toSlot, left)
+							end
 						end
 					end
 
 					for toChest, slots in pairs(t.storages[destination].items.empty.chests) do
-						if t.chests[fromChest].slots[fromSlot].count < 1 or moved >= limit then
+						if t.chests[fromChest].slots[fromSlot].count < 1 or (limit and moved >= limit) then
 							break
 						end
 
@@ -554,13 +584,18 @@ local function itemsInstancer(storageConfig)
 						end
 
 						for _, toSlot in ipairs(toSlots) do
-							if t.chests[fromChest].slots[fromSlot].count < 1 or moved >= limit then
+							if t.chests[fromChest].slots[fromSlot].count < 1 or (limit and moved >= limit) then
 								break
 							end
 
-							moved = moved + t:moveItems(fromChest, fromSlot, toChest, toSlot, limit - moved)
+							local left
+							if limit then left = limit - moved end
+
+							moved = moved + t:moveItems(fromChest, fromSlot, toChest, toSlot, left)
 						end
 					end
+
+					updateFunction(done, total, step, steps)
 				end
 			end
 		end
