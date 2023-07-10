@@ -540,6 +540,11 @@ local function keyHandling(key, holding)
     end
   else
     if key == keys.enter and info.mode == modes.move then
+      for k, chest in ipairs(manager.storages[info.destination].chests) do
+        manager:removeChest(chest)
+        manager:addChest(chest, drawUI, k, #manager.storages[info.destination].chests)
+      end
+      
       manager:changeStorage(info.source, info.destination, info.list.values[info.list.index], drawUI)
       drawUI()
     end
