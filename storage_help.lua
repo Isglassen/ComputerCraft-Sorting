@@ -15,6 +15,9 @@ print("Enter: End search")
 print("LCtrl+Backspace: Clear search")
 print("Left/Right: Move cursor")
 print("Ctrl+V: Paste from clipboard")
+print("")
+print("You can close the tabs by holding Ctrl+T")
+print("The event tab makes it run faster for some reason")
 
 while true do
   os.pullEvent()

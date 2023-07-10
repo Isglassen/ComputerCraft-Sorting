@@ -97,6 +97,9 @@ local manager = require("StorageData.items")(storages)
   Switch destination
   Swap storages
   Edit config
+
+  Redstone updates output, you can detect someone interacting with the chests
+
   Item Search
     Should match based on name, displayName, or tags if starting with a #
     Should support Ctrl+Backspace to erase full words
@@ -544,7 +547,7 @@ local function keyHandling(key, holding)
         manager:removeChest(chest)
         manager:addChest(chest, drawUI, k, #manager.storages[info.destination].chests)
       end
-      
+
       manager:changeStorage(info.source, info.destination, info.list.values[info.list.index], drawUI)
       drawUI()
     end
