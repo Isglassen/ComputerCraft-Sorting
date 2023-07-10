@@ -411,6 +411,10 @@ local function drawUI(done, total, step, steps)
         valid = false
       end
 
+      if v.count < 1 then
+        valid = false
+      end
+
       ---@type Item
       v = v
       for _, searchTerm in ipairs(splitStr(info.search.value)) do
@@ -524,7 +528,7 @@ local function keyHandling(key, holding)
       info.search.active = false
       drawUI()
     elseif key == keys.backspace then
-      if info.keys.leftCtrl then
+      if info.ctrl then
         -- TODO: Actualy erase only to last whitespace
         info.search.value = ""
         info.search.cursor = 0
@@ -542,7 +546,15 @@ local function keyHandling(key, holding)
       drawUI()
     end
   else
-    if key == keys.enter and info.mode == modes.move then
+    if key == keys.enter and info.ctrl and info.mode == modes.move then
+      for k, chest in ipairs(manager.storages[info.destination].chests) do
+        manager:removeChest(chest)
+        manager:addChest(chest, drawUI, k, #manager.storages[info.destination].chests)
+      end
+
+      manager:optimizeStorage(info.source, drawUI)
+      drawUI()
+    elseif key == keys.enter and info.mode == modes.move then
       for k, chest in ipairs(manager.storages[info.destination].chests) do
         manager:removeChest(chest)
         manager:addChest(chest, drawUI, k, #manager.storages[info.destination].chests)
@@ -668,7 +680,7 @@ local function main()
     elseif eventData[1] == "key" then
       keyHandling(eventData[2], eventData[3])
     elseif eventData[1] == "key_up" then
-      if eventData[2] == keys.ctrl then
+      if eventData[2] == keys.leftCtrl then
         info.ctrl = false
       end
     elseif eventData[1] == "char" and info.search.active then

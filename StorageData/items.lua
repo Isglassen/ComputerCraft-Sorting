@@ -470,7 +470,7 @@ local function itemsInstancer(storageConfig)
 			if not updateFunction then updateFunction = function(done, total, step, steps) end end
 
 			local steps = #t.storages[storage].chests
-			for step, chest in t.storages[storage].chests do
+			for step, chest in ipairs(t.storages[storage].chests) do
 				updateFunction(0, #t.chests[chest].slots, step, steps)
 				if t.chests[chest] then
 					for slot = 1, #t.chests[chest].slots do
