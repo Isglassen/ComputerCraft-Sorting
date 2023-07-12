@@ -512,24 +512,25 @@ local function itemsInstancer(storageConfig)
 		---@param destination string The storage to move to
 		---@param item string The type of item to move
 		---@param updateFunction? UpdateFn
+		---@param step? integer
+		---@param steps? integer
 		---@param limit integer? The max amount of the item to move
-		changeStorage = function(t, source, destination, item, updateFunction, limit)
+		changeStorage = function(t, source, destination, item, updateFunction, step, steps, limit)
 			if not updateFunction then updateFunction = function(done, total, step, steps) end end
+			if not step then step = 1 end
+			if not steps then steps = 1 end
 
 			local moved = 0
 
-			local step, steps = 0, 0
+			local done, total = 0, 0
 
-			for _, _ in pairs(t.storages[source].items[item].chests) do
-				steps = steps + 1
+			for _, slots in pairs(t.storages[source].items[item].chests) do
+				total = total + #slots
 			end
 
+			updateFunction(done, total, step, steps)
+
 			for fromChest, slots in pairs(t.storages[source].items[item].chests) do
-				step = step + 1
-
-				local total = #slots
-
-				updateFunction(0, total, step, steps)
 				if limit and moved >= limit then
 					break
 				end
@@ -540,7 +541,7 @@ local function itemsInstancer(storageConfig)
 					table.insert(fromSlots, slot)
 				end
 
-				for done, fromSlot in ipairs(fromSlots) do
+				for _, fromSlot in ipairs(fromSlots) do
 					if limit and moved >= limit then
 						break
 					end
@@ -594,6 +595,8 @@ local function itemsInstancer(storageConfig)
 							moved = moved + t:moveItems(fromChest, fromSlot, toChest, toSlot, left)
 						end
 					end
+
+					done = done + 1
 
 					updateFunction(done, total, step, steps)
 				end

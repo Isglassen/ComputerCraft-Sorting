@@ -83,42 +83,30 @@ local manager = require("StorageData.items")(storages)
 
 
 --[[
-  Needed things:
-
-  Features:
-
+  TODO:
+  Item move limit
   Touch Screen
   Refresh all
   Refresh chest
     Listed by storage
-  Move items
-    You can now select two storage systems to move between (by default Output and Storage)
+    Redstone updates output, you can detect someone interacting with the chests
   Switch source
   Switch destination
   Swap storages
   Edit config
 
-  Redstone updates output, you can detect someone interacting with the chests
-
   Item Search
-    Should match based on name, displayName, or tags if starting with a #
     Should support Ctrl+Backspace to erase full words
 
   Information:
-
-  Operation progress
-  Current mode
-  List of items/chests/storages
-  Free space in destination
-    Also free space for specific items
-
-  Background operations:
-
-  Refresh chest on peripheral and peripheral_detatch events
+    Operation progress
+    Current mode
+    List of items/chests/storages
+    Free space in destination
+      Also free space for specific items
 
   Config:
-
-  Replace underscores with spaces in items
+    Replace underscores with spaces in items
 ]]
 
 local modes = {
@@ -569,9 +557,15 @@ local function keyHandling(key, holding)
         manager:addChest(chest, drawUI, k, #manager.storages[info.destination].chests)
       end
 
+      local step, steps = 0, 0
+      for _, _ in pairs(manager.storages[info.destination].items) do
+        steps = steps + 1
+      end
+
       for item, value in pairs(manager.storages[info.destination].items) do
         if item ~= "empty" then
-          manager:changeStorage(info.destination, info.source, item, drawUI)
+          step = step + 1
+          manager:changeStorage(info.destination, info.source, item, drawUI, step, steps)
         end
       end
       drawUI()
