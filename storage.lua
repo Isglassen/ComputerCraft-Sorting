@@ -35,8 +35,6 @@ local function parseStorage(file)
   return name, chests
 end
 
--- TODO Load storages from ./storages/*.storage
--- Format is line 1: Storage name, one chest per line after that
 local storages = {}
 
 for _, path in pairs(fs.find(fs.combine(programPath, "./storages/*.storage"))) do
@@ -107,6 +105,7 @@ local manager = require("StorageData.items")(storages)
 
   Config:
     Replace underscores with spaces in items
+    Storages that should be updated before operations
 ]]
 
 local modes = {
@@ -499,9 +498,6 @@ local function drawUI(done, total, step, steps)
   end
 end
 
-
--- TODO: More information about current state
-
 local function clickHandling(button, x, y)
   -- TODO
 end
@@ -511,7 +507,6 @@ local function keyHandling(key, holding)
     info.ctrl = true
   end
   if info.search.active then
-    -- TODO: Search inputs
     if key == keys.enter then
       info.search.active = false
       drawUI()
@@ -535,39 +530,64 @@ local function keyHandling(key, holding)
     end
   else
     if key == keys.enter and info.ctrl and info.mode == modes.move then
-      for k, chest in ipairs(manager.storages[info.destination].chests) do
-        manager:removeChest(chest)
-        manager:addChest(chest, drawUI, k, #manager.storages[info.destination].chests)
-      end
+      local oldState, oldStep = info.state, info.step
+
+      info.state = "Optimizing " .. info.source
+      info.step = ""
 
       manager:optimizeStorage(info.source, drawUI)
+
+      info.state, info.step = oldState, oldStep
+
       drawUI()
     elseif key == keys.enter and info.mode == modes.move then
+      local oldState, oldStep = info.state, info.step
+
+      local item = info.list.values[info.list.index]
+
+      info.state = "Moving " .. item
+      info.step = "Refreshing " .. info.destination
+
       for k, chest in ipairs(manager.storages[info.destination].chests) do
         manager:removeChest(chest)
         manager:addChest(chest, drawUI, k, #manager.storages[info.destination].chests)
       end
 
-      manager:changeStorage(info.source, info.destination, info.list.values[info.list.index], drawUI)
+      info.step = "Moving items"
+
+      manager:changeStorage(info.source, info.destination, item, drawUI)
+
+      info.state, info.step = oldState, oldStep
+
       drawUI()
     end
     if key == keys.backspace and info.mode == modes.move then
+      local oldState, oldStep = info.state, info.step
+
+      info.state = "Emptying " .. info.destination
+      info.step = "Refreshing " .. info.destination
+
       for k, chest in ipairs(manager.storages[info.destination].chests) do
         manager:removeChest(chest)
         manager:addChest(chest, drawUI, k, #manager.storages[info.destination].chests)
       end
+
+      info.step = "Moving items"
 
       local step, steps = 0, 0
       for _, _ in pairs(manager.storages[info.destination].items) do
         steps = steps + 1
       end
 
-      for item, value in pairs(manager.storages[info.destination].items) do
+      for item, _ in pairs(manager.storages[info.destination].items) do
         if item ~= "empty" then
           step = step + 1
           manager:changeStorage(info.destination, info.source, item, drawUI, step, steps)
         end
       end
+
+      info.state, info.step = oldState, oldStep
+
       drawUI()
     elseif key == keys.s or key == keys.down then
       info.list.index = info.list.index + 1
