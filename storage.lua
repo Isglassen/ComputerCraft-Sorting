@@ -79,9 +79,26 @@ fileFns.writeData(fs.combine(programPath, "./storage.cfg"), config)
 ---@type ItemManager
 local manager = require("StorageData.items")(storages)
 
+--[[
+  TOUCH SOLUTIONS:
+
+  SEARCH:
+    Scroll while hovering over the search changes the offset
+    Clicking on the search area sets the cursor to the position that was clicked
+      Blink should be under the clicked character, and clamped to 0 or the search length if outside those
+
+  ITEMS:
+    *Navigation already implemented*
+    Clicking on a list element will perform the Enter operation on that item
+    Clicking on the source inventory in the corner will perform the Ctrl+Enter operation
+    Clicking on the destination inventory in the corner will perform the Backspace operation
+
+  TODO: OTHER MODES
+]]
 
 --[[
-  TODO:
+  TODO: List of things
+
   Item move limit
   Touch Screen
   Refresh all
@@ -320,7 +337,9 @@ local function drawUI(done, total, step, steps)
     if done and total and step and steps then
       termFns.DetailedProgress(term, done, total, step, steps, colors.lime, colors.black)
     else
-      -- TODO: Draw actions
+      --[[
+        TODO: Draw actions
+        ]]
     end
 
     -- Line 3
@@ -444,7 +463,7 @@ local function drawUI(done, total, step, steps)
     info.list.index, info.list.offset = drawList(list, info.list.index, info.list.offset, counts, free)
   end
 
-  if info.search.cursor < 0 then
+  if info.search.cursor < 0 and info.search.active then
     info.search.cursor = 0
   end
   if info.search.cursor > info.search.value:len() then
@@ -453,14 +472,16 @@ local function drawUI(done, total, step, steps)
   if info.search.value:len() < termFns.W(term) - ("Search: "):len() - 3 then
     info.search.offset = 0
   else
-    if info.search.cursor - info.search.offset < 3 then
-      info.search.offset = info.search.cursor - 3
-    end
-    if info.search.cursor - info.search.offset > termFns.W(term) - ("Search: "):len() - 3 then
-      info.search.offset = info.search.cursor - (termFns.W(term) - ("Search: "):len() - 3)
+    if info.search.active then
+      if info.search.cursor - info.search.offset < 3 then
+        info.search.offset = info.search.cursor - 3
+      end
+      if info.search.cursor - info.search.offset > termFns.W(term) - ("Search: "):len() - 3 then
+        info.search.offset = info.search.cursor - (termFns.W(term) - ("Search: "):len() - 3)
+      end
     end
 
-    info.search.offset = math.min(info.search.value:len() - (termFns.W(term) - ("Search: "):len() - 3),
+    info.search.offset = math.min(info.search.value:len() - (termFns.W(term) - ("Search: "):len() - 1),
       math.max(0, info.search.offset))
   end
 
@@ -499,7 +520,9 @@ local function drawUI(done, total, step, steps)
 end
 
 local function clickHandling(button, x, y)
-  -- TODO
+  --[[
+    TODO
+    ]]
 end
 
 local function keyHandling(key, holding)
@@ -512,7 +535,9 @@ local function keyHandling(key, holding)
       drawUI()
     elseif key == keys.backspace then
       if info.ctrl then
-        -- TODO: Actualy erase only to last whitespace
+        --[[
+          TODO: Actualy erase only to last whitespace
+          ]]
         info.search.value = ""
         info.search.cursor = 0
       else
@@ -545,21 +570,23 @@ local function keyHandling(key, holding)
 
       local item = info.list.values[info.list.index]
 
-      info.state = "Moving " .. item
-      info.step = "Refreshing " .. info.destination
+      if item ~= nil then
+        info.state = "Moving " .. item
+        info.step = "Refreshing " .. info.destination
 
-      for k, chest in ipairs(manager.storages[info.destination].chests) do
-        manager:removeChest(chest)
-        manager:addChest(chest, drawUI, k, #manager.storages[info.destination].chests)
+        for k, chest in ipairs(manager.storages[info.destination].chests) do
+          manager:removeChest(chest)
+          manager:addChest(chest, drawUI, k, #manager.storages[info.destination].chests)
+        end
+
+        info.step = "Moving items"
+
+        manager:changeStorage(info.source, info.destination, item, drawUI)
+
+        info.state, info.step = oldState, oldStep
+
+        drawUI()
       end
-
-      info.step = "Moving items"
-
-      manager:changeStorage(info.source, info.destination, item, drawUI)
-
-      info.state, info.step = oldState, oldStep
-
-      drawUI()
     end
     if key == keys.backspace and info.mode == modes.move then
       local oldState, oldStep = info.state, info.step
@@ -716,6 +743,13 @@ local function main()
     elseif eventData[1] == "mouse_scroll" then
       if eventData[4] <= PARAMS:ITEMS_END(term) and eventData[4] >= PARAMS:ITEMS_START() then
         info.list.index = info.list.index + eventData[2]
+        drawUI()
+      elseif (eventData[3] > ("Search:"):len()) and (eventData[4] == 1) then
+        if info.search.active then
+          info.search.cursor = info.search.cursor - eventData[2]
+        else
+          info.search.offset = info.search.offset - eventData[2]
+        end
         drawUI()
       end
     end
