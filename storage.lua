@@ -83,7 +83,6 @@ local manager = require("StorageData.items")(storages)
   TOUCH SOLUTIONS:
 
   SEARCH:
-    Scroll while hovering over the search changes the offset
     Clicking on the search area sets the cursor to the position that was clicked
       Blink should be under the clicked character, and clamped to 0 or the search length if outside those
 
@@ -99,18 +98,20 @@ local manager = require("StorageData.items")(storages)
 --[[
   TODO: List of things
 
-  Item move limit
-  Touch Screen
-  Refresh all
-  Refresh chest
+  Operation - Keyboard, Touch Screen
+
+  Item move limit - A text input validating to numbers, UNASSIGNED
+  Refresh all - Ctrl+Enter to refresh source, Click on storage name
+  Refresh chest - UNASSIGNED, UNASSIGNED
     Listed by storage
     Redstone updates output, you can detect someone interacting with the chests
-  Switch source
-  Switch destination
-  Swap storages
-  Edit config
+      Refreshes the storage update config
+  Switch source - Q, Click on Source name of state
+  Switch destination - E, Click on Destination name of state
+  Swap storages - UNASSIGNED, Click on the arrow in the state
+  Edit config - O, UNASSIGNED, UNASSIGNED
 
-  Item Search
+  Item Search - F, Click on search box
     Should support Ctrl+Backspace to erase full words
 
   Information:
@@ -123,6 +124,7 @@ local manager = require("StorageData.items")(storages)
   Config:
     Replace underscores with spaces in items
     Storages that should be updated before operations
+      Optional list of sides to listen for redstone inputs on, triggering update instead of before every operation
 ]]
 
 local modes = {
