@@ -98,6 +98,8 @@ local manager = require("StorageData.items")(storages)
 --[[
   TODO: List of things
 
+  Operations from custom os events, to allow automatic operations through the same program 
+
   Operation - Keyboard, Touch Screen
 
   Item move limit - A text input validating to numbers, UNASSIGNED
