@@ -503,6 +503,7 @@ local function itemsInstancer(storageConfig)
 						updateFunction(slot, #t.chests[chest].slots, step, steps)
 					end
 				end
+				sleep(0.05)
 			end
 		end,
 
