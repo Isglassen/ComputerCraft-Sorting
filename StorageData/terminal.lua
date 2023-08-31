@@ -1,18 +1,18 @@
 local ccexpect = dofile("rom/modules/main/cc/expect.lua")
-local expect, field, range = ccexpect.expect, ccexpect.field, ccexpect.range
+local expect = ccexpect.expect
 
 ---Returns the height of a terminal
 ---@param terminal CCRedirect
 ---@return integer
 local function H(terminal)
-	local w, h = terminal.getSize()
+	local _, h = terminal.getSize()
 	return h
 end
 ---Returns the width of a terminal
 ---@param terminal CCRedirect
 ---@return integer
 local function W(terminal)
-	local w, h = terminal.getSize()
+	local w, _ = terminal.getSize()
 	return w
 end
 ---Returns whether the terminal supports color
