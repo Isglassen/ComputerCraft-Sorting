@@ -444,22 +444,21 @@ local function drawUI(done, total, step, steps)
 
           valid = valid and hasTag
         else
-          if config.use_displayName then
-            if not v.displayName:lower():find(searchTerm:lower(), 1, true) then
-              valid = false
-            end
-          else
-            if not v.name:lower():find(searchTerm:lower(), 1, true) then
-              valid = false
-            end
+          local hasName = false
+          if not v.displayName:lower():find(searchTerm:lower(), 1, true) then
+            hasName = true
           end
+          if not v.name:lower():find(searchTerm:lower(), 1, true) then
+            hasName = true
+          end
+          valid = valid and hasName
         end
       end
 
       if valid then
         ---@type Item
         v = v
-        table.insert(list, v.displayName)
+        table.insert(list, (config.use_displayName and v.displayName) or v.name)
         table.insert(counts, "" .. v.count)
         table.insert(free, "/" .. v.free)
 
