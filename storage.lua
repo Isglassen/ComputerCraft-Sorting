@@ -98,7 +98,7 @@ local manager = require("StorageData.items")(storages)
 --[[
   TODO: List of things
 
-  Operations from custom os events, to allow automatic operations through the same program 
+  Operations from custom os events, to allow automatic operations through the same program
 
   Operation - Keyboard, Touch Screen
 
@@ -111,7 +111,7 @@ local manager = require("StorageData.items")(storages)
   Switch source - Q, Click on Source name of state
   Switch destination - E, Click on Destination name of state
   Swap storages - UNASSIGNED, Click on the arrow in the state
-  Edit config - O, UNASSIGNED, UNASSIGNED
+  Edit config - O, UNASSIGNED
 
   Item Search - F, Click on search box
     Should support Ctrl+Backspace to erase full words
@@ -325,6 +325,9 @@ end
 ---@param step? integer If loading something, current step
 ---@param steps? integer If loading something, total step
 local function drawUI(done, total, step, steps)
+  --[[
+    TODO: drawUI for storage change [DONE?]
+  ]]
   for _, term in pairs(info.terms) do
     pcall(term.setTextScale, 0.5)
 
@@ -359,7 +362,7 @@ local function drawUI(done, total, step, steps)
     term.setBackgroundColor(colors.gray)
     term.clearLine()
 
-    if info.mode == modes.move then
+    if info.mode == modes.move or info.mode == modes.source or info.mode == modes.destination then
       term.write(info.source)
       termFns.LeftWrite(term, termFns.W(term), termFns.H(term) - 1, info.destination)
     end
@@ -369,7 +372,7 @@ local function drawUI(done, total, step, steps)
     term.setCursorPos(1, termFns.H(term))
     term.clearLine()
 
-    if info.mode == modes.move then
+    if info.mode == modes.move or info.mode == modes.source or info.mode == modes.destination then
       local txt, fg, bg =
           manager.storages[info.source].count .. "/" ..
           manager.storages[info.source].free + manager.storages[info.source].count, "", ""
@@ -465,6 +468,19 @@ local function drawUI(done, total, step, steps)
     end
 
     info.list.index, info.list.offset = drawList(list, info.list.index, info.list.offset, counts, free)
+  elseif info.mode == modes.source or modes.destination then
+    local list, counts, free = {}, {}, {}
+    info.list.values = {}
+
+    for k, v in pairs(manager.storages) do
+      table.insert(list, k)
+      table.insert(counts, "" .. v.count)
+      table.insert(free, "/" .. v.free)
+
+      table.insert(info.list.values, k)
+    end
+
+    info.list.index, info.list.offset = drawList(list, info.list.index, info.list.offset, counts, free)
   end
 
   if info.search.cursor < 0 and info.search.active then
@@ -497,28 +513,31 @@ local function drawUI(done, total, step, steps)
 
     term.setTextColor(colors.white)
     term.setBackgroundColor(colors.black)
-    term.write("Search:")
 
-    term.setBackgroundColor(colors.white)
+    if info.mode == modes.move then
+      term.write("Search:")
 
-    if info.search.value == "" and not info.search.active then
-      term.setTextColor(colors.lightGray)
-      term.write(" Press F to search")
-    else
-      term.setTextColor(colors.black)
-      if info.search.offset == 0 then
-        term.write(" " .. info.search.value)
+      term.setBackgroundColor(colors.white)
+
+      if info.search.value == "" and not info.search.active then
+        term.setTextColor(colors.lightGray)
+        term.write(" Press F to search")
       else
-        term.write(info.search.value:sub(info.search.offset))
+        term.setTextColor(colors.black)
+        if info.search.offset == 0 then
+          term.write(" " .. info.search.value)
+        else
+          term.write(info.search.value:sub(info.search.offset))
+        end
       end
-    end
 
-    if info.search.active then
-      term.setCursorPos(("Search: "):len() + 1 + info.search.cursor - info.search.offset, 1)
-      term.setTextColor(colors.black)
-      term.setCursorBlink(true)
-    else
-      term.setCursorBlink(false)
+      if info.search.active then
+        term.setCursorPos(("Search: "):len() + 1 + info.search.cursor - info.search.offset, 1)
+        term.setTextColor(colors.black)
+        term.setCursorBlink(true)
+      else
+        term.setCursorBlink(false)
+      end
     end
   end
 end
@@ -529,10 +548,39 @@ local function clickHandling(button, x, y)
     ]]
 end
 
-local function keyHandling(key, holding)
-  if key == keys.leftCtrl then
-    info.ctrl = true
+local function storageKeyHandling(key)
+  local property
+  local opposite
+  if info.mode == modes.destination then
+    property = "destination"
+    opposite = "source"
+  elseif info.mode == modes.source then
+    property = "source"
+    opposite = "destination"
   end
+
+  if key == keys.enter then
+    local newVal = info.list.values[info.list.index]
+    if newVal == info[opposite] then
+      info[opposite] = info[property]
+    end
+    info[property] = newVal
+    info.mode = modes.move
+    info.state = ""
+    info.step = ""
+    info.list.index = 1
+    info.list.offset = 0
+    drawUI()
+  elseif key == keys.s or key == keys.down then
+    info.list.index = info.list.index + 1
+    drawUI()
+  elseif key == keys.w or key == keys.up then
+    info.list.index = info.list.index - 1
+    drawUI()
+  end
+end
+
+local function moveKeyHandling(key)
   if info.search.active then
     if key == keys.enter then
       info.search.active = false
@@ -540,8 +588,8 @@ local function keyHandling(key, holding)
     elseif key == keys.backspace then
       if info.ctrl then
         --[[
-          TODO: Actualy erase only to last whitespace
-          ]]
+              TODO: Actualy erase only to last whitespace
+              ]]
         info.search.value = ""
         info.search.cursor = 0
       else
@@ -557,45 +605,26 @@ local function keyHandling(key, holding)
       info.search.cursor = math.min(info.search.value:len(), info.search.cursor + 1)
       drawUI()
     end
-  else
-    if key == keys.enter and info.ctrl and info.mode == modes.move then
-      local oldState, oldStep = info.state, info.step
+    return
+  end
+  if key == keys.enter and info.ctrl then
+    local oldState, oldStep = info.state, info.step
 
-      info.state = "Optimizing " .. info.source
-      info.step = ""
+    info.state = "Optimizing " .. info.source
+    info.step = ""
 
-      manager:optimizeStorage(info.source, drawUI)
+    manager:optimizeStorage(info.source, drawUI)
 
-      info.state, info.step = oldState, oldStep
+    info.state, info.step = oldState, oldStep
 
-      drawUI()
-    elseif key == keys.enter and info.mode == modes.move then
-      local oldState, oldStep = info.state, info.step
+    drawUI()
+  elseif key == keys.enter then
+    local oldState, oldStep = info.state, info.step
 
-      local item = info.list.values[info.list.index]
+    local item = info.list.values[info.list.index]
 
-      if item ~= nil then
-        info.state = "Moving " .. item
-        info.step = "Refreshing " .. info.destination
-
-        for k, chest in ipairs(manager.storages[info.destination].chests) do
-          manager:removeChest(chest)
-          manager:addChest(chest, drawUI, k, #manager.storages[info.destination].chests)
-        end
-
-        info.step = "Moving items"
-
-        manager:changeStorage(info.source, info.destination, item, drawUI)
-
-        info.state, info.step = oldState, oldStep
-
-        drawUI()
-      end
-    end
-    if key == keys.backspace and info.mode == modes.move then
-      local oldState, oldStep = info.state, info.step
-
-      info.state = "Emptying " .. info.destination
+    if item ~= nil then
+      info.state = "Moving " .. item
       info.step = "Refreshing " .. info.destination
 
       for k, chest in ipairs(manager.storages[info.destination].chests) do
@@ -605,33 +634,77 @@ local function keyHandling(key, holding)
 
       info.step = "Moving items"
 
-      local step, steps = 0, 0
-      for _, _ in pairs(manager.storages[info.destination].items) do
-        steps = steps + 1
-      end
-
-      for item, _ in pairs(manager.storages[info.destination].items) do
-        if item ~= "empty" then
-          step = step + 1
-          manager:changeStorage(info.destination, info.source, item, drawUI, step, steps)
-        end
-      end
+      manager:changeStorage(info.source, info.destination, item, drawUI)
 
       info.state, info.step = oldState, oldStep
 
       drawUI()
-    elseif key == keys.s or key == keys.down then
-      info.list.index = info.list.index + 1
-      drawUI()
-    elseif key == keys.w or key == keys.up then
-      info.list.index = info.list.index - 1
-      drawUI()
-    elseif key == keys.f then
-      info.search.first = true
-      info.search.cursor = info.search.value:len()
-      info.search.active = true
-      drawUI()
     end
+  elseif key == keys.e then
+    info.mode = modes.destination
+    info.state = "Change Destination"
+    info.step = ""
+    info.list.index = 1
+    info.list.offset = 0
+    drawUI()
+  elseif key == keys.q then
+    info.mode = modes.source
+    info.state = "Change Source"
+    info.step = ""
+    info.list.index = 1
+    info.list.offset = 0
+    drawUI()
+  elseif key == keys.backspace then
+    local oldState, oldStep = info.state, info.step
+
+    info.state = "Emptying " .. info.destination
+    info.step = "Refreshing " .. info.destination
+
+    for k, chest in ipairs(manager.storages[info.destination].chests) do
+      manager:removeChest(chest)
+      manager:addChest(chest, drawUI, k, #manager.storages[info.destination].chests)
+    end
+
+    info.step = "Moving items"
+
+    local step, steps = 0, 0
+    for _, _ in pairs(manager.storages[info.destination].items) do
+      steps = steps + 1
+    end
+
+    for item, _ in pairs(manager.storages[info.destination].items) do
+      if item ~= "empty" then
+        step = step + 1
+        manager:changeStorage(info.destination, info.source, item, drawUI, step, steps)
+      end
+    end
+
+    info.state, info.step = oldState, oldStep
+
+    drawUI()
+  elseif key == keys.s or key == keys.down then
+    info.list.index = info.list.index + 1
+    drawUI()
+  elseif key == keys.w or key == keys.up then
+    info.list.index = info.list.index - 1
+    drawUI()
+  elseif key == keys.f then
+    info.search.first = true
+    info.search.cursor = info.search.value:len()
+    info.search.active = true
+    drawUI()
+  end
+end
+
+local function keyHandling(key, holding)
+  if key == keys.leftCtrl then
+    info.ctrl = true
+  end
+  if info.mode == modes.move then
+    return moveKeyHandling(key)
+  end
+  if info.mode == modes.source or info.mode == modes.destination then
+    return storageKeyHandling(key)
   end
 end
 
