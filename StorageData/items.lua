@@ -1,5 +1,26 @@
 local DEFAULT_STORAGE = "Main Storage"
 
+local files = require("StorageData.files")
+
+---Splits a string by seperator, https://stackoverflow.com/a/7615129
+---@param inputstr string The string to split
+---@param sep string? The gmatch seperator to split by, or %s by default
+---@return string[] strings The list of split strings
+local function splitStr(inputstr, sep)
+	sep = sep or '%s'
+	local t = {}
+	for field, s in string.gmatch(inputstr, "([^" .. sep .. "]*)(" .. sep .. "?)") do
+		table.insert(t, field)
+		if s == "" then return t end
+	end
+	return t
+end
+
+local SEPERATORS = {
+	chestProps = '\n',
+	slotProps = '|'
+}
+
 ---Checks if an item is included in the table
 ---@generic T item type
 ---@param table T[] Table to check
@@ -169,6 +190,148 @@ local function itemsInstancer(storageConfig)
 	local items = {
 		storages = storages,
 		chests = {},
+
+		---Lists all files that should contain save data
+		---@return string[] fileNames list of files
+		listSaveFiles = function()
+			local fileList = {}
+			local disks = {}
+
+			peripheral.find('drive', function(_, wrap) table.insert(disks, wrap.getMountPath()) end)
+
+			for _, disk in ipairs(disks) do
+				for _, file in ipairs(fs.find(disk .. '/storage_chests/*.chest')) do
+					table.insert(fileList, file)
+				end
+			end
+
+			return fileList
+		end,
+
+		---Saves all needed data from the manager in a compact way
+		---@param t ItemManager
+		---@return boolean success
+		save = function(t)
+			local drivePaths = {}
+
+			peripheral.find('drive', function(_, wrap) table.insert(drivePaths, wrap.getMountPath()) end)
+
+			for _, file in ipairs(t.listSaveFiles()) do
+				fs.delete(file)
+			end
+
+			for chest, chestData in pairs(t.chests) do
+				local path = './storage_chests/' .. chest:gsub(':', '.') .. '.chest'
+				local outStr = chest
+
+				for slot, slotData in ipairs(chestData.slots) do
+					local slotProps = {
+						slot,
+						slotData.count,
+						slotData.maxCount,
+						slotData.name or '',
+						slotData.displayName,
+						slotData.nbt or ''
+					}
+
+					if slotData.tags then
+						for tag, val in pairs(slotData.tags) do
+							if val then
+								table.insert(slotProps, tag)
+							end
+						end
+					end
+
+					outStr = outStr .. SEPERATORS.chestProps .. table.concat(slotProps, SEPERATORS.slotProps)
+				end
+
+				local saved = false
+
+				for _, drivePath in ipairs(drivePaths) do
+					local filePath = fs.combine(drivePath, path)
+					local ok = pcall(files.writeText, filePath, outStr)
+					if ok then
+						saved = true
+						break
+					end
+				end
+
+				if not saved then
+					for _, file in ipairs(t.listSaveFiles()) do
+						fs.delete(file)
+					end
+
+					return false
+				end
+			end
+
+			return true
+		end,
+
+		---Adds information to the manager from savefiles. Should not be used when manager is populated
+		---@param t ItemManager
+		---@return boolean loaded If anything was loaded
+		load = function(t)
+			local loaded = false
+			for _, file in ipairs(t.listSaveFiles()) do
+				local chestString = files.readText(file)
+
+				local chestData = splitStr(chestString, SEPERATORS.chestProps)
+				local chestName = chestData[1]
+				local slots = { unpack(chestData, 2) }
+
+				t.chests[chestName] = {
+					count = 0,
+					free = 0,
+					reserved = 0,
+					storage = t:findStorage(chestName),
+					slots = {}
+				}
+
+				for _, slotString in ipairs(slots) do
+					local slotData = splitStr(slotString, SEPERATORS.slotProps)
+
+					--[[@type integer]]
+					local slotNum = tonumber(slotData[1]) or 0
+					--[[@type integer]]
+					local slotCount = tonumber(slotData[2]) or 0
+					--[[@type integer]]
+					local slotMaxCount = tonumber(slotData[3]) or 0
+					--[[@type string | nil]]
+					local slotItem = slotData[4]
+					if slotItem == '' then slotItem = nil end
+					--[[@type string]]
+					local slotDisplay = slotData[5]
+					--[[@type string | nil]]
+					local slotNbt = slotData[6]
+					if slotNbt == '' then slotNbt = nil end
+					local slotTags = { unpack(slotData, 7) }
+
+					local slotDetails = {
+						count = slotCount,
+						maxCount = slotMaxCount,
+						name = slotItem,
+						displayName = slotDisplay,
+						nbt = slotNbt,
+						tags = nil
+					}
+
+					if slotItem then
+						slotDetails.tags = {}
+					end
+
+					for _, tag in ipairs(slotTags) do
+						if not slotDetails.tags then slotDetails.tags = {} end
+						slotDetails.tags[tag] = true
+					end
+
+					t:addSlot(chestName, slotNum, slotDetails)
+				end
+				loaded = true
+			end
+
+			return loaded
+		end,
 
 		---Generates ItemSlot for a chest slot, creating the correct empty data if the details are nil
 		---@param chest string The chest of the slot

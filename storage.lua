@@ -445,10 +445,10 @@ local function drawUI(done, total, step, steps)
           valid = valid and hasTag
         else
           local hasName = false
-          if not v.displayName:lower():find(searchTerm:lower(), 1, true) then
+          if v.displayName:lower():find(searchTerm:lower(), 1, true) then
             hasName = true
           end
-          if not v.name:lower():find(searchTerm:lower(), 1, true) then
+          if k:lower():find(searchTerm:lower(), 1, true) then
             hasName = true
           end
           valid = valid and hasName
@@ -458,7 +458,7 @@ local function drawUI(done, total, step, steps)
       if valid then
         ---@type Item
         v = v
-        table.insert(list, (config.use_displayName and v.displayName) or v.name)
+        table.insert(list, (config.use_displayName and v.displayName) or k)
         table.insert(counts, "" .. v.count)
         table.insert(free, "/" .. v.free)
 
@@ -613,6 +613,7 @@ local function moveKeyHandling(key)
     info.step = ""
 
     manager:optimizeStorage(info.source, drawUI)
+    manager:save()
 
     info.state, info.step = oldState, oldStep
 
@@ -634,6 +635,7 @@ local function moveKeyHandling(key)
       info.step = "Moving items"
 
       manager:changeStorage(info.source, info.destination, item, drawUI)
+      manager:save()
 
       info.state, info.step = oldState, oldStep
 
@@ -652,6 +654,10 @@ local function moveKeyHandling(key)
     info.step = ""
     info.list.index = 1
     info.list.offset = 0
+    drawUI()
+  elseif key == keys.r and info.ctrl then
+    manager:refreshAll(drawUI)
+    manager:save()
     drawUI()
   elseif key == keys.backspace then
     local oldState, oldStep = info.state, info.step
@@ -677,6 +683,8 @@ local function moveKeyHandling(key)
         manager:changeStorage(info.destination, info.source, item, drawUI, step, steps)
       end
     end
+
+    manager:save()
 
     info.state, info.step = oldState, oldStep
 
@@ -724,7 +732,11 @@ local function main()
     info.state = "Loading..."
     info.step = "Reading Items"
 
-    manager:refreshAll(drawUI)
+    local loaded = manager:load()
+    if not loaded then
+      manager:refreshAll(drawUI)
+      manager:save()
+    end
 
     info.state = info.source .. " -> " .. info.destination
     info.step = "(count/free)"
@@ -767,7 +779,9 @@ local function main()
         info.state = "Updating Chest..."
         info.step = "Reading Items"
 
+        manager:removeChest(eventData[2])
         manager:addChest(eventData[2], drawUI)
+        manager:save()
 
         info.state = oldState
         info.step = oldStep
@@ -789,6 +803,7 @@ local function main()
 
       if manager.chests[eventData[2]] then
         manager:removeChest(eventData[2])
+        manager:save()
       end
 
       drawUI()
