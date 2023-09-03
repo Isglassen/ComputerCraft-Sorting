@@ -224,6 +224,10 @@ local function itemsInstancer(storageConfig)
 				local path = './storage_chests/' .. chest:gsub(':', '.') .. '.chest'
 				local outStr = chest
 
+				--[[
+					FIXME: For some reason some chest files might be empty
+				]]
+
 				for slot, slotData in ipairs(chestData.slots) do
 					local slotProps = {
 						slot,
@@ -274,6 +278,7 @@ local function itemsInstancer(storageConfig)
 		load = function(t)
 			local loaded = false
 			for _, file in ipairs(t.listSaveFiles()) do
+				os.queueEvent('load_chest', file)
 				local chestString = files.readText(file)
 
 				local chestData = splitStr(chestString, SEPERATORS.chestProps)
