@@ -659,7 +659,7 @@ local function moveKeyHandling(key)
     info.list.index = 1
     info.list.offset = 0
     drawUI()
-  elseif key == keys.r and info.ctrl then
+  elseif key == keys.f5 and info.ctrl then
     manager:refreshAll(drawUI)
     manager:save()
     drawUI()
