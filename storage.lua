@@ -13,6 +13,10 @@ local function splitStr(inputstr, sep)
   return t
 end
 
+--[[
+  TODO: Second computer that updates save files instead of this. Sends message to read the save files to this computer from time to time.
+]]
+
 local fileFns = require("StorageData.files")
 local termFns = require("StorageData.terminal")
 
