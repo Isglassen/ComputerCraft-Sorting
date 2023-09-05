@@ -185,6 +185,9 @@ local PARAMS = {
 ---@return integer newIndex A new index in case the given one was invalid
 ---@return integer newOffset A new offset in case the given one was invalid
 local function drawList(list, index, offset, countList, freeList)
+  --[[
+    TODO: Offset free so that counts line up
+  ]]
   if index < 1 then
     index = 1
   end
@@ -749,6 +752,7 @@ local function main()
   end
 
   parallel.waitForAny(catchLoading, loading)
+  multishell.setFocus(multishell.getCurrent())
   local queueLen = #eventQueue
 
   -- Main Loop

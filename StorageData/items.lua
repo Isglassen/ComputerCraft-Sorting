@@ -224,10 +224,6 @@ local function itemsInstancer(storageConfig)
 				local path = './storage_chests/' .. chest:gsub(':', '.') .. '.chest'
 				local outStr = chest
 
-				--[[
-					FIXME: For some reason some chest files might be empty
-				]]
-
 				for slot, slotData in ipairs(chestData.slots) do
 					local slotProps = {
 						slot,
@@ -253,10 +249,13 @@ local function itemsInstancer(storageConfig)
 
 				for _, drivePath in ipairs(drivePaths) do
 					local filePath = fs.combine(drivePath, path)
-					local ok = pcall(files.writeText, filePath, outStr)
-					if ok then
+					files.writeText(filePath, outStr)
+					local text = files.readText(filePath)
+					if text == outStr then
 						saved = true
 						break
+					else
+						fs.delete(filePath)
 					end
 				end
 
