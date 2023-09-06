@@ -1,4 +1,5 @@
 local DEFAULT_STORAGE = "Main Storage"
+local SAVE_PATH = './storage_chests'
 
 local files = require("StorageData.files")
 
@@ -200,7 +201,7 @@ local function itemsInstancer(storageConfig)
 			peripheral.find('drive', function(_, wrap) table.insert(disks, wrap.getMountPath()) end)
 
 			for _, disk in ipairs(disks) do
-				for _, file in ipairs(fs.find(disk .. '/storage_chests/*.chest')) do
+				for _, file in ipairs(fs.find(fs.combine(disk, SAVE_PATH) .. '/*.chest')) do
 					table.insert(fileList, file)
 				end
 			end
@@ -221,7 +222,7 @@ local function itemsInstancer(storageConfig)
 			end
 
 			for chest, chestData in pairs(t.chests) do
-				local path = './storage_chests/' .. chest:gsub(':', '.') .. '.chest'
+				local path = DEFAULT_STORAGE.. '/' .. chest:gsub(':', '.') .. '.chest'
 				local outStr = chest
 
 				for slot, slotData in ipairs(chestData.slots) do
