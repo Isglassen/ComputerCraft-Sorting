@@ -103,6 +103,7 @@ local manager = require("StorageData.items")(storages)
   TODO: List of things
 
   Operations from custom os events, to allow automatic operations through the same program
+  Also operations from modem messages, to allow computers to work together
 
   Operation - Keyboard, Touch Screen
 
