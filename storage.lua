@@ -634,6 +634,9 @@ local function moveKeyHandling(key)
       info.state = "Moving " .. item
       info.step = "Refreshing " .. info.destination
 
+      --[[
+        TODO: Add config for chests to refresh, source/destination if they are in the list
+      ]]
       for k, chest in ipairs(manager.storages[info.destination].chests) do
         manager:removeChest(chest)
         manager:addChest(chest, drawUI, k, #manager.storages[info.destination].chests)
@@ -672,6 +675,9 @@ local function moveKeyHandling(key)
     info.state = "Emptying " .. info.destination
     info.step = "Refreshing " .. info.destination
 
+    --[[
+      TODO: Add config for chests to refresh, source/destination if they are in the list
+    ]]
     for k, chest in ipairs(manager.storages[info.destination].chests) do
       manager:removeChest(chest)
       manager:addChest(chest, drawUI, k, #manager.storages[info.destination].chests)
