@@ -13,6 +13,18 @@ local function splitStr(inputstr, sep)
   return t
 end
 
+---Checks if an item is included in the table
+---@generic T item type
+---@param table T[] Table to check
+---@param item T Item to check for
+---@return boolean found Item found
+local function tableIncludes(table, item)
+	for k, v in pairs(table) do
+		if v == item then return true end
+	end
+	return false
+end
+
 --[[
   TODO: Second computer that updates save files instead of this. Sends message to read the save files to this computer from time to time.
 ]]
@@ -62,19 +74,20 @@ for _, path in pairs(fs.find(fs.combine(programPath, "./storages/*.storage"))) d
 end
 
 
----@class UIConfig
+---@class SystemConfig
 ---@field monitors string[] List of monitors to display items on
----@field use_displayName boolean Use display names instead of internal names (some items may have the same display name)
+---@field useDisplayName boolean Use display names instead of internal names (some items may have the same display name)
+---@field dynamicStorages string[] A list of storages that should be refreshed before a movement including them
 
----@type UIConfig
+---@type SystemConfig
 local config = fileFns.readData(fs.combine(programPath, "./storage.cfg"))
 
 if not config.monitors then
   config.monitors = {}
 end
 
-if config.use_displayName == nil then
-  config.use_displayName = false
+if config.useDisplayName == nil then
+  config.useDisplayName = false
 end
 
 fileFns.writeData(fs.combine(programPath, "./storage.cfg"), config)
@@ -466,7 +479,7 @@ local function drawUI(done, total, step, steps)
       if valid then
         ---@type Item
         v = v
-        table.insert(list, (config.use_displayName and v.displayName) or k)
+        table.insert(list, (config.useDisplayName and v.displayName) or k)
         table.insert(counts, "" .. v.count)
         table.insert(free, "/" .. v.free)
 
@@ -633,14 +646,21 @@ local function moveKeyHandling(key)
 
     if item ~= nil then
       info.state = "Moving " .. item
-      info.step = "Refreshing " .. info.destination
 
-      --[[
-        TODO: Add config for chests to refresh, source/destination if they are in the list
-      ]]
-      for k, chest in ipairs(manager.storages[info.destination].chests) do
-        manager:removeChest(chest)
-        manager:addChest(chest, drawUI, k, #manager.storages[info.destination].chests)
+      if tableIncludes(config.dynamicStorages, info.source) then
+        info.step = "Refreshing " .. info.source
+        for k, chest in ipairs(manager.storages[info.source].chests) do
+          manager:removeChest(chest)
+          manager:addChest(chest, drawUI, k, #manager.storages[info.source].chests)
+        end
+      end
+
+      if tableIncludes(config.dynamicStorages, info.destination) then
+        info.step = "Refreshing " .. info.destination
+        for k, chest in ipairs(manager.storages[info.destination].chests) do
+          manager:removeChest(chest)
+          manager:addChest(chest, drawUI, k, #manager.storages[info.destinations].chests)
+        end
       end
 
       info.step = "Moving items"
@@ -674,11 +694,23 @@ local function moveKeyHandling(key)
     local oldState, oldStep = info.state, info.step
 
     info.state = "Emptying " .. info.destination
-    info.step = "Refreshing " .. info.destination
 
-    --[[
-      TODO: Add config for chests to refresh, source/destination if they are in the list
-    ]]
+    if tableIncludes(config.dynamicStorages, info.source) then
+      info.step = "Refreshing " .. info.source
+      for k, chest in ipairs(manager.storages[info.source].chests) do
+        manager:removeChest(chest)
+        manager:addChest(chest, drawUI, k, #manager.storages[info.source].chests)
+      end
+    end
+
+    if tableIncludes(config.dynamicStorages, info.destination) then
+      info.step = "Refreshing " .. info.destination
+      for k, chest in ipairs(manager.storages[info.destination].chests) do
+        manager:removeChest(chest)
+        manager:addChest(chest, drawUI, k, #manager.storages[info.destinations].chests)
+      end
+    end
+
     for k, chest in ipairs(manager.storages[info.destination].chests) do
       manager:removeChest(chest)
       manager:addChest(chest, drawUI, k, #manager.storages[info.destination].chests)
